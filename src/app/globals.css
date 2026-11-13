@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Dark-only UI: lunar ops console. */
+:root {
+  --background: #07090f;
+  --foreground: #e6e9f0;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: #0e121b;
+  --color-panel-2: #141a26;
+  --color-line: #232b3b;
+  --color-muted: #8b95a8;
+  --color-sun: #ffc94a;
+  --color-earth: #4cc3ff;
+  --color-good: #3ccf8e;
+  --color-warn: #f2b33d;
+  --color-bad: #f2545b;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Native range inputs, themed. */
+input[type="range"] {
+  accent-color: #ffc94a;
+}
+
+/* OpenLayers controls on dark background. */
+.ol-control button {
+  background-color: rgb(20 26 38 / 0.9) !important;
+  color: #e6e9f0 !important;
+}
+.ol-attribution {
+  display: none;
+}

@@ -1,0 +1,332 @@
+[
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "sun",
+    "time": "2026-12-01T00:00:00Z",
+    "azimuthDeg": 280.050784,
+    "elevationDeg": 1.557451
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "sun",
+    "time": "2026-12-08T00:00:00Z",
+    "azimuthDeg": 194.810404,
+    "elevationDeg": 0.959183
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "sun",
+    "time": "2026-12-15T00:00:00Z",
+    "azimuthDeg": 109.524033,
+    "elevationDeg": 1.204006
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "sun",
+    "time": "2026-12-22T00:00:00Z",
+    "azimuthDeg": 24.479093,
+    "elevationDeg": 1.695547
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "sun",
+    "time": "2026-12-29T00:00:00Z",
+    "azimuthDeg": 299.566849,
+    "elevationDeg": 1.316806
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "earth",
+    "time": "2026-12-01T00:00:00Z",
+    "azimuthDeg": 6.668414,
+    "elevationDeg": -1.113627
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "earth",
+    "time": "2026-12-08T00:00:00Z",
+    "azimuthDeg": 3.39214,
+    "elevationDeg": -6.220139
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "earth",
+    "time": "2026-12-15T00:00:00Z",
+    "azimuthDeg": 354.311127,
+    "elevationDeg": 0.815231
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "earth",
+    "time": "2026-12-22T00:00:00Z",
+    "azimuthDeg": 355.372678,
+    "elevationDeg": 6.780554
+  },
+  {
+    "site": {
+      "name": "south-pole-test",
+      "lat": -89.5,
+      "lon": 0.0
+    },
+    "body": "earth",
+    "time": "2026-12-29T00:00:00Z",
+    "azimuthDeg": 7.178769,
+    "elevationDeg": -2.442194
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "sun",
+    "time": "2026-12-01T00:00:00Z",
+    "azimuthDeg": 8.417395,
+    "elevationDeg": 2.968834
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "sun",
+    "time": "2026-12-08T00:00:00Z",
+    "azimuthDeg": 283.116475,
+    "elevationDeg": 1.786925
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "sun",
+    "time": "2026-12-15T00:00:00Z",
+    "azimuthDeg": 197.853159,
+    "elevationDeg": -0.070968
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "sun",
+    "time": "2026-12-22T00:00:00Z",
+    "azimuthDeg": 112.841869,
+    "elevationDeg": 0.652626
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "sun",
+    "time": "2026-12-29T00:00:00Z",
+    "azimuthDeg": 27.942472,
+    "elevationDeg": 2.408582
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "earth",
+    "time": "2026-12-01T00:00:00Z",
+    "azimuthDeg": 94.977327,
+    "elevationDeg": -1.742113
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "earth",
+    "time": "2026-12-08T00:00:00Z",
+    "azimuthDeg": 91.567938,
+    "elevationDeg": -6.762733
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "earth",
+    "time": "2026-12-15T00:00:00Z",
+    "azimuthDeg": 82.674223,
+    "elevationDeg": 0.511096
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "earth",
+    "time": "2026-12-22T00:00:00Z",
+    "azimuthDeg": 83.897752,
+    "elevationDeg": 6.445359
+  },
+  {
+    "site": {
+      "name": "de-gerlache-test",
+      "lat": -88.485,
+      "lon": 271.655
+    },
+    "body": "earth",
+    "time": "2026-12-29T00:00:00Z",
+    "azimuthDeg": 95.454107,
+    "elevationDeg": -3.083088
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "sun",
+    "time": "2026-12-01T00:00:00Z",
+    "azimuthDeg": 268.648674,
+    "elevationDeg": -13.422195
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "sun",
+    "time": "2026-12-08T00:00:00Z",
+    "azimuthDeg": 95.147523,
+    "elevationDeg": -81.307628
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "sun",
+    "time": "2026-12-15T00:00:00Z",
+    "azimuthDeg": 91.421551,
+    "elevationDeg": 3.941305
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "sun",
+    "time": "2026-12-22T00:00:00Z",
+    "azimuthDeg": 152.411318,
+    "elevationDeg": 87.839126
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "sun",
+    "time": "2026-12-29T00:00:00Z",
+    "azimuthDeg": 268.85121,
+    "elevationDeg": 6.088082
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "earth",
+    "time": "2026-12-01T00:00:00Z",
+    "azimuthDeg": 272.422816,
+    "elevationDeg": 73.108999
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "earth",
+    "time": "2026-12-08T00:00:00Z",
+    "azimuthDeg": 286.611195,
+    "elevationDeg": 69.05943
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "earth",
+    "time": "2026-12-15T00:00:00Z",
+    "azimuthDeg": 267.631169,
+    "elevationDeg": 60.691305
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "earth",
+    "time": "2026-12-22T00:00:00Z",
+    "azimuthDeg": 255.103064,
+    "elevationDeg": 60.910455
+  },
+  {
+    "site": {
+      "name": "near-side-equator-test",
+      "lat": 0.674,
+      "lon": 23.473
+    },
+    "body": "earth",
+    "time": "2026-12-29T00:00:00Z",
+    "azimuthDeg": 277.188959,
+    "elevationDeg": 73.518592
+  }
+]

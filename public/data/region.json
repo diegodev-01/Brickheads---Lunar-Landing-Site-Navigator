@@ -1,0 +1,200 @@
+{
+ "id": "shackleton-de-gerlache",
+ "name": "Shackleton \u2013 de Gerlache corridor",
+ "projection": {
+  "code": "MOON:SP",
+  "proj4": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs",
+  "radiusM": 1737400.0
+ },
+ "extentM": [
+  -50000,
+  -50000,
+  50000,
+  50000
+ ],
+ "displayResolutionM": 100.0,
+ "layers": [
+  {
+   "id": "hillshade",
+   "label": "Terrain (hillshade)",
+   "url": "/data/layers/hillshade.png",
+   "legend": null,
+   "provenance": "derived",
+   "source": "Computed from PGDA LDEM 20 m (Barker et al. 2023)"
+  },
+  {
+   "id": "slope",
+   "label": "Slope",
+   "url": "/data/layers/slope.png",
+   "legend": {
+    "min": 0,
+    "max": 25,
+    "unit": "\u00b0",
+    "stops": [
+     "#1a9850",
+     "#d9ef8b",
+     "#fdae61",
+     "#a50026"
+    ]
+   },
+   "provenance": "real",
+   "source": "PGDA LDSM 20 m slope, averaged to 100 m (Barker et al. 2023)"
+  },
+  {
+   "id": "sun",
+   "label": "Sunlight (18.6-yr avg)",
+   "url": "/data/layers/sun.png",
+   "legend": {
+    "min": 0,
+    "max": 100,
+    "unit": "%",
+    "stops": [
+     "#0b0b2b",
+     "#7a1f5c",
+     "#f2711c",
+     "#fff3a0"
+    ]
+   },
+   "provenance": "real",
+   "source": "LOLA AVGVISIB 60 m, PGDA product 69 (Mazarico et al. 2011)"
+  },
+  {
+   "id": "earth",
+   "label": "Earth visibility (18.6-yr avg)",
+   "url": "/data/layers/earth.png",
+   "legend": {
+    "min": 0,
+    "max": 100,
+    "unit": "%",
+    "stops": [
+     "#0b0b2b",
+     "#1d4e89",
+     "#2fa4d9",
+     "#c8f4ff"
+    ]
+   },
+   "provenance": "real",
+   "source": "LOLA AVGVISIB_EARTH 60 m, PGDA product 69 (Mazarico et al. 2011)"
+  },
+  {
+   "id": "psr",
+   "label": "Permanent shadow (PSR)",
+   "url": "/data/layers/psr.png",
+   "legend": {
+    "min": 0,
+    "max": 1,
+    "unit": "",
+    "stops": [
+     "#4cc9f0",
+     "#4cc9f0"
+    ]
+   },
+   "provenance": "real",
+   "source": "LOLA LPSR 60 m, PGDA product 69 (Mazarico et al. 2011)"
+  }
+ ],
+ "features": [
+  {
+   "name": "Shoemaker",
+   "lat": -88.137,
+   "lon": 45.911,
+   "x": 40580,
+   "y": 39309,
+   "diameterKm": 51.82,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Henson",
+   "lat": -88.57,
+   "lon": 229.37,
+   "x": -32911,
+   "y": -28238,
+   "diameterKm": 43.0,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Sverdrup",
+   "lat": -88.3209,
+   "lon": 206.6125,
+   "x": -22810,
+   "y": -45525,
+   "diameterKm": 32.83,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "de Gerlache",
+   "lat": -88.4849,
+   "lon": 271.6553,
+   "x": -45926,
+   "y": 1327,
+   "diameterKm": 32.71,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Shackleton",
+   "lat": -89.67,
+   "lon": 129.78,
+   "x": 7690,
+   "y": -6403,
+   "diameterKm": 20.92,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Haynes",
+   "lat": -88.75,
+   "lon": 167.39,
+   "x": 8275,
+   "y": -36991,
+   "diameterKm": 17.0,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Spudis",
+   "lat": -89.51,
+   "lon": 275.39,
+   "x": -14793,
+   "y": 1396,
+   "diameterKm": 13.0,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Tooley",
+   "lat": -88.04,
+   "lon": 51.31,
+   "x": 46395,
+   "y": 37156,
+   "diameterKm": 7.0,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Marvin",
+   "lat": -89.13,
+   "lon": 272.22,
+   "x": -26362,
+   "y": 1022,
+   "diameterKm": 4.6,
+   "type": "Crater, craters"
+  },
+  {
+   "name": "Bay",
+   "lat": -88.76,
+   "lon": 323.15,
+   "x": -22551,
+   "y": 30090,
+   "diameterKm": 3.5,
+   "type": "Crater, craters"
+  }
+ ],
+ "assumptions": {
+  "observerHeightM": 2.0,
+  "horizonStepDeg": 0.5,
+  "horizonRayKm": 180.0
+ },
+ "attribution": [
+  "Topography/slope: NASA GSFC PGDA, LOLA south-pole DEMs, Barker et al. (2023) PSJ 4:183, doi:10.3847/PSJ/acf3e1",
+  "Illumination/Earth visibility/PSR: LOLA team via PDS / NASA GSFC PGDA, Mazarico et al. (2011) Icarus 211:1066, doi:10.1016/j.icarus.2010.10.030",
+  "Ephemeris: NASA/JPL Horizons System (DE441)",
+  "Feature names: IAU/USGS Gazetteer of Planetary Nomenclature"
+ ],
+ "generatedAt": "2026-11-13T15:39:30Z"
+}
