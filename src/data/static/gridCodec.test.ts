@@ -1,20 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { GRID_FIELD_IDS } from "@/domain/grid/grid";
 import { decodeGrid, type GridManifest } from "./gridCodec";
 
 function build(): { manifest: GridManifest; buf: ArrayBuffer } {
   const cols = 2;
   const rows = 1;
   const n = cols * rows;
-  const ids = [
-    "elevation",
-    "slopeMean",
-    "slopeP95",
-    "roughness",
-    "psrFraction",
-    "psrDistance",
-    "sunLongTerm",
-    "earthLongTerm",
-  ];
+  const ids = [...GRID_FIELD_IDS];
   const fields: GridManifest["fields"] = [];
   const bytes: number[] = [];
   const prov = { kind: "measured", confidence: "high" as const, source: "t", verified: true };

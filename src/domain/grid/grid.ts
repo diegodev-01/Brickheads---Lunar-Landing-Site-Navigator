@@ -26,6 +26,10 @@ export const GRID_FIELD_IDS = [
   "psrDistance",
   "sunLongTerm",
   "earthLongTerm",
+  "safeRadius5",
+  "safeRadius8",
+  "safeRadius10",
+  "safeRadius15",
 ] as const;
 export type GridFieldId = (typeof GRID_FIELD_IDS)[number];
 

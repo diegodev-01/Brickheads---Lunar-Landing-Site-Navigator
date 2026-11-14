@@ -53,6 +53,7 @@ BIN_DEG = 4.0
 N_BINS = int(360 / BIN_DEG)  # 90
 HZ_MIN, HZ_STEP = -4.0, 0.1
 OUT = br.OUT / "grid"
+SAFE_THETAS = (5, 8, 10, 15)
 
 # ------------------------------------------------------------------------- ray sample distances
 def _distances() -> tuple[np.ndarray, np.ndarray]:
@@ -209,6 +210,16 @@ def main() -> None:
     slope_mean = np.nanmean(sb, axis=2)
     slope_p95 = np.nanpercentile(sb, 95, axis=2)
     rough = np.nanstd(sb, axis=2)
+
+    # Lander-scale slope gate (docs/scoring-model.md §2.1): radius of the largest circle in each cell where
+    # every 40 m slope sample is <= theta. Distance transform of the safe mask = distance to the nearest unsafe
+    # sample; its max over the cell's pixels is the largest inscribed circle centred in the cell.
+    safe_radius = {}
+    for theta in SAFE_THETAS:
+        safe = np.nan_to_num(slope40, nan=90.0) <= theta
+        dist_m = ndimage.distance_transform_edt(safe) * br.NEAR_RES  # 0 on unsafe pixels
+        safe_radius[theta] = np.max(block(upsample2(dist_m.astype(np.float32)), k20), axis=2)
+        print(f"  safe radius >= 100 m at <= {theta} deg: {(safe_radius[theta] >= 100).mean() * 100:.0f} % of cells", flush=True)
     i0 = int((br.NEAR_HALF - HALF) / br.NEAR_RES)
     n40 = int(2 * HALF / br.NEAR_RES)
     elev = np.nanmean(block(upsample2(near[i0 : i0 + n40, i0 : i0 + n40]), k20), axis=2)
@@ -260,6 +271,11 @@ def main() -> None:
         ("slopeMean", slope_mean, "u8", 0.2, 0.0, "deg", *slope_prov),
         ("slopeP95", slope_p95, "u8", 0.2, 0.0, "deg", slope_prov[0], slope_prov[1], "95th percentile of " + slope_prov[2]),
         ("roughness", rough, "u8", 0.1, 0.0, "deg", "derived", "medium", "Std-dev of 40 m slope within the cell (roughness proxy)"),
+        *[
+            (f"safeRadius{t}", safe_radius[t], "u8", 10.0, 0.0, "m", "derived", slope_prov[1],
+             f"Largest circle in the cell with all 40 m slopes <= {t} deg (distance transform of {slope_prov[2]})")
+            for t in SAFE_THETAS
+        ],
         ("psrFraction", psr_frac, "u8", 1 / 250, 0.0, "fraction", "measured", "high", "LOLA LPSR 60 m, PGDA product 69 (Mazarico et al. 2011)"),
         ("psrDistance", psr_dist_km, "u16", 0.01, 0.0, "km", "derived", "high", "Distance to nearest LPSR pixel (100 m)"),
         ("sunLongTerm", sun_lt, "u8", 0.5, 0.0, "%", "measured", "high", "LOLA AVGVISIB 60 m, PGDA product 69 (Mazarico et al. 2011)"),
