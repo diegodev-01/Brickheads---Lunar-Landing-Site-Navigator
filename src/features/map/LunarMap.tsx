@@ -17,15 +17,16 @@ import { Circle, Fill, Stroke, Style, Text } from "ol/style";
 import ScaleLine from "ol/control/ScaleLine";
 import { defaults as defaultControls } from "ol/control/defaults";
 import type { RegionMeta } from "@/data";
-import type { RankedSite } from "@/domain/scoring/score";
 import type { Extent } from "@/domain/grid/grid";
 import type { Site } from "@/domain/types";
-import { scoreColor } from "@/components/ui/scoreColor";
+import type { SiteScore } from "@/features/sites/SiteList";
 
 interface Props {
   region: RegionMeta;
   sites: Site[];
-  ranking: RankedSite[];
+  siteScores: Map<string, SiteScore>;
+  /** Recommended zones: lettered pin at the pick plus the zone's cell squares. */
+  zones?: { letter: string; x: number; y: number; cells: Extent[] }[];
   layerId: string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
@@ -40,7 +41,8 @@ interface Props {
 export default function LunarMap({
   region,
   sites,
-  ranking,
+  siteScores,
+  zones = [],
   layerId,
   selectedId,
   onSelect,
@@ -54,6 +56,7 @@ export default function LunarMap({
   const projectionRef = useRef<Projection | null>(null);
   const sitesSrc = useRef(new VectorSource());
   const roiSrc = useRef(new VectorSource());
+  const zonesSrc = useRef(new VectorSource());
   const gridSourceRef = useRef<ImageCanvasSource | null>(null);
   const gridRef = useRef(gridOverlay);
   const outCanvas = useRef<HTMLCanvasElement | null>(null);
@@ -140,6 +143,7 @@ export default function LunarMap({
               }),
             }),
         }),
+        new VectorLayer({ source: zonesSrc.current, zIndex: 9 }),
         new VectorLayer({ source: sitesSrc.current, zIndex: 10 }),
       ],
       view: new View({
@@ -213,32 +217,31 @@ export default function LunarMap({
     );
   }, [layerId, region, hasGrid]);
 
-  // Site markers, coloured by score and labelled with rank.
+  // Site markers: small and neutral (the heatmap carries the colour), with a readiness symbol.
   useEffect(() => {
-    const byId = new Map(ranking.map((r) => [r.siteId, r]));
+    const SYMBOL = { good: "✓", possible: "~", poor: "✗", excluded: "×" } as const;
     const [minX, minY, maxX, maxY] = region.extentM;
     const features = sites
       .filter((s) => s.x >= minX && s.x <= maxX && s.y >= minY && s.y <= maxY)
       .map((s) => {
-        const r = byId.get(s.id);
+        const r = siteScores.get(s.id);
         const sel = s.id === selectedId;
-        const nogo = (r?.flags.length ?? 0) > 0;
         const f = new Feature({ geometry: new Point([s.x, s.y]), siteId: s.id });
         f.setStyle(
           new Style({
-            zIndex: sel ? 100 : 100 - (r?.rank ?? 99),
+            zIndex: sel ? 100 : 50,
             image: new Circle({
-              radius: sel ? 13 : 10,
-              fill: new Fill({ color: nogo ? "#4a5263" : scoreColor(r?.score ?? 0) }),
+              radius: sel ? 11 : 7,
+              fill: new Fill({ color: sel ? "#ffc94a" : "rgba(14,18,27,0.9)" }),
               stroke: new Stroke({
-                color: sel ? "#ffffff" : "rgba(0,0,0,0.85)",
+                color: sel ? "#ffffff" : "rgba(230,233,240,0.9)",
                 width: sel ? 3 : 1.5,
               }),
             }),
             text: new Text({
-              text: nogo ? "×" : String(r?.rank ?? ""),
-              font: "bold 11px var(--font-geist-mono), monospace",
-              fill: new Fill({ color: "#07090f" }),
+              text: r?.readiness ? SYMBOL[r.readiness] : "",
+              font: "bold 10px var(--font-geist-mono), monospace",
+              fill: new Fill({ color: sel ? "#07090f" : "#e6e9f0" }),
             }),
           }),
         );
@@ -246,7 +249,43 @@ export default function LunarMap({
       });
     sitesSrc.current.clear();
     sitesSrc.current.addFeatures(features);
-  }, [sites, ranking, selectedId, region]);
+  }, [sites, siteScores, selectedId, region]);
+
+  // Recommended zones: outlined cells + big lettered pin.
+  useEffect(() => {
+    const feats: Feature[] = [];
+    for (const z of zones) {
+      for (const c of z.cells) {
+        const f = new Feature({ geometry: fromExtent(c) });
+        f.setStyle(
+          new Style({
+            fill: new Fill({ color: "rgba(255,255,255,0.12)" }),
+            stroke: new Stroke({ color: "rgba(255,255,255,0.95)", width: 1.5 }),
+          }),
+        );
+        feats.push(f);
+      }
+      const pin = new Feature({ geometry: new Point([z.x, z.y]) });
+      pin.setStyle(
+        new Style({
+          zIndex: 200,
+          image: new Circle({
+            radius: 14,
+            fill: new Fill({ color: "#ffc94a" }),
+            stroke: new Stroke({ color: "#07090f", width: 3 }),
+          }),
+          text: new Text({
+            text: z.letter,
+            font: "bold 15px var(--font-geist-sans), sans-serif",
+            fill: new Fill({ color: "#07090f" }),
+          }),
+        }),
+      );
+      feats.push(pin);
+    }
+    zonesSrc.current.clear();
+    zonesSrc.current.addFeatures(feats);
+  }, [zones]);
 
   // Pan to the selected site if it is off-screen.
   useEffect(() => {

@@ -1,7 +1,8 @@
 # Scoring and recommendation model
 
-Status: **draft for review** (2026-11-14). Nothing below is implemented yet. Once approved, it is built as pure
-functions in `src/domain/scoring/` (no React/Next imports) with unit tests for every edge case listed in §8.
+Status: **approved and implemented** (2026-11-14) in `src/domain/scoring/` (`piecewise.ts`, `model.ts`,
+`evaluate.ts`, `grid.ts`, `explainCell.ts`). These are pure functions with no React/Next imports, and
+`cellScoring.test.ts` covers every edge case in §8.
 
 All thresholds are **illustrative defaults for a small robotic lander, not mission requirements**. Every one
 of them is a configurable parameter (`ScoringConfig`).
@@ -10,32 +11,32 @@ of them is a configurable parameter (`ScoringConfig`).
 
 ## 1. Inputs per 500 m cell
 
-| Symbol          | Meaning                                                                    | Source (provenance)                          |
-| --------------- | -------------------------------------------------------------------------- | -------------------------------------------- |
-| `r_safe(θ)`     | radius of the largest circle in the cell where 40 m slope ≤ θ (m)          | LOLA LDSM (derived, **new grid field**, §2.1) |
-| `ρ`             | roughness: std-dev of 40 m slope in the cell (°)                           | LOLA (derived)                                |
-| `b`             | boulder hazard index 0–1                                                   | model (SIMULATED, low)                        |
-| `s_P95`         | 95th-percentile slope in the cell (°)                                      | LOLA LDSM (measured)                          |
-| `f_sun`         | mean visible solar-disc fraction over the mission window, 0–1              | Horizons + LOLA horizon (derived)             |
-| `N_sun`         | longest stretch with < 50 % of the disc visible (h)                        | same (derived)                                |
-| `f_dte`         | mean fraction of the window with Earth above the terrain, 0–1              | Horizons + LOLA horizon (derived)             |
-| `G_dte`         | longest Earth blackout (h)                                                 | same (derived)                                |
-| `f_relay`, `G_relay` | relay contact fraction and longest relay gap (added with the relay module) | relay model (SIMULATED)               |
-| `d_psr`         | distance to the nearest permanently shadowed 100 m pixel (km)              | LOLA LPSR (derived)                           |
-| `I_2km`         | max ice-probability index within 2 km of the cell                          | Diviner + LOLA + Mini-RF model (SIMULATED)    |
+| Symbol               | Meaning                                                                    | Source (provenance)                           |
+| -------------------- | -------------------------------------------------------------------------- | --------------------------------------------- |
+| `r_safe(θ)`          | radius of the largest circle in the cell where 40 m slope ≤ θ (m)          | LOLA LDSM (derived, **new grid field**, §2.1) |
+| `ρ`                  | roughness: std-dev of 40 m slope in the cell (°)                           | LOLA (derived)                                |
+| `b`                  | boulder hazard index 0–1                                                   | model (SIMULATED, low)                        |
+| `s_P95`              | 95th-percentile slope in the cell (°)                                      | LOLA LDSM (measured)                          |
+| `f_sun`              | mean visible solar-disc fraction over the mission window, 0–1              | Horizons + LOLA horizon (derived)             |
+| `N_sun`              | longest stretch with < 50 % of the disc visible (h)                        | same (derived)                                |
+| `f_dte`              | mean fraction of the window with Earth above the terrain, 0–1              | Horizons + LOLA horizon (derived)             |
+| `G_dte`              | longest Earth blackout (h)                                                 | same (derived)                                |
+| `f_relay`, `G_relay` | relay contact fraction and longest relay gap (added with the relay module) | relay model (SIMULATED)                       |
+| `d_psr`              | distance to the nearest permanently shadowed 100 m pixel (km)              | LOLA LPSR (derived)                           |
+| `I_2km`              | max ice-probability index within 2 km of the cell                          | Diviner + LOLA + Mini-RF model (SIMULATED)    |
 
 ## 2. Stage 1: hard gates
 
 A cell is **excluded** if any enabled gate fails. Each failure is recorded as `{gate, value, threshold, provenance}`
-and shown to the user, e.g. *"Excluded: no flat spot ≥ 100 m radius (largest is 40 m at ≤ 5°)"*.
+and shown to the user, e.g. _"Excluded: no flat spot ≥ 100 m radius (largest is 40 m at ≤ 5°)"_.
 
-| Gate        | Fails when                                         | Default                   | Notes                                              |
-| ----------- | -------------------------------------------------- | ------------------------- | -------------------------------------------------- |
-| G1 Slope    | `r_safe(θ) < R_ellipse`                            | θ = **5°**, R = **100 m** | see §2.1, the key decision for this review          |
-| G2 Roughness| `ρ > ρ_max`                                        | **4°**                    | excludes the roughest ~4 % of cells                |
-| G3 Boulders | `b > b_max`                                        | **0.6**                   | input is SIMULATED, so the failure is tagged "simulated gate" |
-| G4 Comms    | no DTE **and** no relay contact in the window: `f_dte = 0 ∧ f_relay = 0` | on | until the relay module lands: `f_dte = 0`           |
-| G5 Darkness | `f_sun = 0` over the window                        | **off**                   | optional; preset-dependent (a science lander may accept it) |
+| Gate         | Fails when                                                               | Default                   | Notes                                                         |
+| ------------ | ------------------------------------------------------------------------ | ------------------------- | ------------------------------------------------------------- |
+| G1 Slope     | `r_safe(θ) < R_ellipse`                                                  | θ = **5°**, R = **100 m** | see §2.1, the key decision for this review                    |
+| G2 Roughness | `ρ > ρ_max`                                                              | **4°**                    | excludes the roughest ~4 % of cells                           |
+| G3 Boulders  | `b > b_max`                                                              | **0.6**                   | input is SIMULATED, so the failure is tagged "simulated gate" |
+| G4 Comms     | no DTE **and** no relay contact in the window: `f_dte = 0 ∧ f_relay = 0` | on                        | until the relay module lands: `f_dte = 0`                     |
+| G5 Darkness  | `f_sun = 0` over the window                                              | **off**                   | optional; preset-dependent (a science lander may accept it)   |
 
 ### 2.1 Why the slope gate is lander-scale (conflict with a literal reading of the brief)
 
@@ -93,12 +94,12 @@ n_pow = 0.6·PL(f_sun; (0,0), (0.5,0.6), (0.8,0.9), (1,1))
 `w = (w_safe, w_sci, w_comm, w_pow)`, with every `wᵢ ≥ 0` and `Σwᵢ = 1`. A user edit to one slider rescales the
 others proportionally, so the sum stays 1. If every weight is 0, the preset weights are restored.
 
-| Preset        | safety | science | comms | power |
-| ------------- | -----: | ------: | ----: | ----: |
-| Balanced (default) | 0.35 | 0.20 | 0.20 | 0.25 |
-| Safety-first  |   0.55 |    0.10 |  0.15 |  0.20 |
-| Science-first |   0.25 |    0.45 |  0.10 |  0.20 |
-| Comms-first   |   0.25 |    0.10 |  0.45 |  0.20 |
+| Preset             | safety | science | comms | power |
+| ------------------ | -----: | ------: | ----: | ----: |
+| Balanced (default) |   0.35 |    0.20 |  0.20 |  0.25 |
+| Safety-first       |   0.55 |    0.10 |  0.15 |  0.20 |
+| Science-first      |   0.25 |    0.45 |  0.10 |  0.20 |
+| Comms-first        |   0.25 |    0.10 |  0.45 |  0.20 |
 
 ```
 score = 100 · Σ wᵢ · nᵢ        (only for cells that pass all gates; excluded cells have no score)
@@ -107,8 +108,11 @@ contributionᵢ = 100 · wᵢ · nᵢ  (points, sums to the score)
 
 ## 4. Uncertainty
 
-Each normalized factor inherits a 1-σ uncertainty from the **weakest provenance** of its inputs:
-high → 0.05, medium → 0.12, low → 0.25 (in normalized units). Assuming independent factors:
+Each input carries a 1-σ uncertainty from its provenance: high → 0.05, medium → 0.12, low (or simulated) → 0.25,
+in normalized units. A factor's σ is the **sub-weight-averaged** σ of its inputs. For example, safety =
+0.5·σ(radius) + 0.3·σ(roughness) + 0.2·σ(boulders). (The draft used the _weakest_ input. That marked every
+safety score low-confidence because boulders are simulated, so the indicator said nothing. Logged in
+decisions.md #24.) Assuming independent factors:
 
 ```
 σ_score = 100 · sqrt( Σ (wᵢ · σᵢ)² )
@@ -125,8 +129,8 @@ Shown as **"82 ± 6 (medium confidence)"**. Gates fed by SIMULATED inputs (G3) a
    already chosen pick. Repeat until 3 picks are made or candidates run out.
 3. **Zone** = the pick plus the connected passing cells within 1 km whose score is ≥ pick − 5 (shown as an
    outline: "a 1.2 km² area of good landing ground").
-4. Fewer than 3 picks → say so plainly (*"Only 2 separate safe zones in this area: try a larger search area or relax
-   the slope limit"*).
+4. Fewer than 3 picks → say so plainly (_"Only 2 separate safe zones in this area: try a larger search area or relax
+   the slope limit"_).
 
 ## 6. Explanation
 
@@ -160,6 +164,7 @@ Headline + 3–4 reasons (the strongest positive, the biggest drawback, the gate
 for example:
 
 > **Good landing candidate** · medium confidence
+>
 > - ☀ Sunlit 78 % of your window; longest night 31 h
 > - 🛰 Earth in view 64 % of the time
 > - ⚠ Flat area is small (120 m radius at ≤ 5°)
@@ -180,9 +185,9 @@ for example:
 
 These fill gaps where no verified dataset exists. Every output is tagged SIMULATED.
 
-| Model                 | Formula                                                                                     | Why                                    |
-| --------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Boulder hazard `b`    | `0.7·PL(ρ; (1,0),(6,1)) + 0.3·PL(s_P95; (5,0),(25,1))`                                     | no polar boulder / rock-abundance map verified |
-| Temperature now       | `Tavg + (Tmax − Tavg)·f_sun(t)` (Diviner annual mean/max)                                   | shows day/night contrast; no thermal inertia |
-| Hydrogen (ppm)        | `100 + 150·iceStableFraction`                                                               | LEND / LP-NS maps not verified         |
-| Ice probability `I`   | `0.55·surfaceStable + 0.15·PL(iceDepth; (0,1),(0.5,0)) + 0.20·psrFraction + 0.10·PL(CPR; (0.6,0),(1.2,1))`, renormalised over available inputs; High ≥ 0.5, Medium ≥ 0.25 | combines Diviner, LOLA, Mini-RF |
+| Model               | Formula                                                                                                                                                                   | Why                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Boulder hazard `b`  | `0.7·PL(ρ; (1,0),(6,1)) + 0.3·PL(s_P95; (5,0),(25,1))`                                                                                                                    | no polar boulder / rock-abundance map verified |
+| Temperature now     | `Tavg + (Tmax − Tavg)·f_sun(t)` (Diviner annual mean/max)                                                                                                                 | shows day/night contrast; no thermal inertia   |
+| Hydrogen (ppm)      | `100 + 150·iceStableFraction`                                                                                                                                             | LEND / LP-NS maps not verified                 |
+| Ice probability `I` | `0.55·surfaceStable + 0.15·PL(iceDepth; (0,1),(0.5,0)) + 0.20·psrFraction + 0.10·PL(CPR; (0.6,0),(1.2,1))`, renormalised over available inputs; High ≥ 0.5, Medium ≥ 0.25 | combines Diviner, LOLA, Mini-RF                |

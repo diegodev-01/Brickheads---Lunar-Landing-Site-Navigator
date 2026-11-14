@@ -3,15 +3,17 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo } from "react";
 import { ProvenanceBadge } from "@/components/ui/Panel";
-import { cellIndexAt, type Extent } from "@/domain/grid/grid";
+import { cellCenter, cellIndexAt, type Extent } from "@/domain/grid/grid";
 import { xyToLonLat } from "@/domain/geo/polarStereo";
 import type { MissionSetup } from "@/domain/mission/setup";
-import { WEIGHT_PRESETS } from "@/domain/scoring/config";
+import { readinessOf } from "@/domain/scoring/explainCell";
+import type { Zone } from "@/domain/scoring/grid";
+import { SCORING_PRESETS } from "@/domain/scoring/model";
 import { createSensorLayers } from "@/domain/sensors/sensors";
 import type { LonLat } from "@/domain/types";
 import { useAnalysis } from "./analysis/useAnalysis";
-import { paintGrid, paletteLut } from "./map/heatmap";
 import { SensorReadings } from "./insights/SensorReadings";
+import { paintGrid, paintSuitability, paletteLut } from "./map/heatmap";
 import {
   GRID_LAYERS,
   isGridLayer,
@@ -20,11 +22,14 @@ import {
   staticEntries,
 } from "./map/layerCatalog";
 import { LayerToggle } from "./map/LayerToggle";
+import { ReadinessCard } from "./recommend/ReadinessCard";
+import { useRecommendation } from "./recommend/useRecommendation";
+import { ZONE_LETTERS, ZoneCards } from "./recommend/ZoneCards";
 import { useDataset, type Dataset } from "./scenario/useDataset";
-import { useNavigator } from "./scenario/useNavigator";
+import { useNavigator, type Mode } from "./scenario/useNavigator";
 import { MissionSetupPanel, type SetupValues } from "./setup/MissionSetupPanel";
 import { SiteDetail } from "./sites/SiteDetail";
-import { SiteList } from "./sites/SiteList";
+import { SiteList, type SiteScore } from "./sites/SiteList";
 import { TimeScrubber } from "./timeline/TimeScrubber";
 import { WeightsPanel } from "./weights/WeightsPanel";
 
@@ -61,6 +66,20 @@ export function NavigatorApp() {
 /** Window sampling step: keeps ~350 samples per window so a recompute stays well under a second. */
 const stepFor = (days: number) => (days <= 14 ? 1 : days <= 30 ? 2 : 4);
 
+const MODES: { id: Mode; label: string; hint: string }[] = [
+  {
+    id: "explore",
+    label: "Explore",
+    hint: "Browse the map layers: light, comms, terrain, instruments.",
+  },
+  {
+    id: "recommend",
+    label: "Recommend",
+    hint: "The 3 best landing zones for your dates and priorities.",
+  },
+  { id: "analyze", label: "Analyze", hint: "Click any point to see why it is good or bad." },
+];
+
 function Navigator({ data }: { data: Dataset }) {
   const nav = useNavigator(data);
   const { state, dispatch, selected } = nav;
@@ -93,50 +112,7 @@ function Navigator({ data }: { data: Dataset }) {
   const activeSensor = sensorLayers.find((l) => l.id === state.layerId) ?? null;
   const sunNow = analysis.snapshot?.sun;
 
-  // Heatmap canvas for the active computed layer (illumination or sensor).
-  const gridOverlay = useMemo(() => {
-    if (activeSensor) {
-      const st = sensorStyle(activeSensor.id);
-      if (!st) return null;
-      const r = activeSensor.getLayer(undefined, state.scrubMs, { sunNow });
-      const canvas = paintGrid(
-        document.createElement("canvas"),
-        geometry,
-        r.grid,
-        st.min,
-        st.max,
-        paletteLut(st.palette),
-      );
-      return { canvas, extent: geometry.extentM, version: 0 };
-    }
-    if (!isGridLayer(state.layerId)) return null;
-    const values =
-      state.layerId === "illumNow"
-        ? analysis.snapshot?.sun
-        : state.layerId === "earthWindow"
-          ? analysis.windowResult?.earthFraction
-          : analysis.windowResult?.sunFraction;
-    if (!values) return null;
-    const canvas = paintGrid(
-      document.createElement("canvas"),
-      geometry,
-      values,
-      0,
-      1,
-      LUTS[state.layerId]!,
-    );
-    return { canvas, extent: geometry.extentM, version: 0 };
-    // scrubMs/sunNow matter only for time-dependent sensor layers.
-  }, [
-    state.layerId,
-    state.scrubMs,
-    sunNow,
-    activeSensor,
-    analysis.snapshot,
-    analysis.windowResult,
-    geometry,
-  ]);
-
+  // Region of interest: a square around the selected point (whole region when nothing is selected).
   const roi: Extent | null = useMemo(() => {
     if (!selected) return null;
     const h = state.roiHalfKm * 1000;
@@ -145,9 +121,96 @@ function Navigator({ data }: { data: Dataset }) {
     return [Math.max(x0, x - h), Math.max(y0, y - h), Math.min(x1, x + h), Math.min(y1, y + h)];
   }, [selected, state.roiHalfKm, geometry]);
 
+  // In Recommend mode the search area is fixed by the target, not by inspecting zones.
+  const rec = useRecommendation(
+    data,
+    sensorLayers,
+    analysis.windowResult,
+    state.weights,
+    state.model,
+    roi,
+  );
+
+  // Heatmap canvas for the active computed layer (suitability, illumination or sensor).
+  const gridOverlay = useMemo(() => {
+    const canvas = () => document.createElement("canvas");
+    if (activeSensor) {
+      const st = sensorStyle(activeSensor.id);
+      if (!st) return null;
+      const r = activeSensor.getLayer(undefined, state.scrubMs, { sunNow });
+      const c = paintGrid(canvas(), geometry, r.grid, st.min, st.max, paletteLut(st.palette));
+      return { canvas: c, extent: geometry.extentM, version: 0 };
+    }
+    if (!isGridLayer(state.layerId)) return null;
+    if (state.layerId === "suitability") {
+      if (!rec.scores) return null;
+      const c = paintSuitability(canvas(), geometry, rec.scores.score, rec.scores.failed);
+      return { canvas: c, extent: geometry.extentM, version: 0 };
+    }
+    const values =
+      state.layerId === "illumNow"
+        ? analysis.snapshot?.sun
+        : state.layerId === "earthWindow"
+          ? analysis.windowResult?.earthFraction
+          : analysis.windowResult?.sunFraction;
+    if (!values) return null;
+    const c = paintGrid(canvas(), geometry, values, 0, 1, LUTS[state.layerId]!);
+    return { canvas: c, extent: geometry.extentM, version: 0 };
+  }, [
+    state.layerId,
+    state.scrubMs,
+    sunNow,
+    activeSensor,
+    rec.scores,
+    analysis.snapshot,
+    analysis.windowResult,
+    geometry,
+  ]);
+
   const layers = useMemo(
     () => [...GRID_LAYERS, ...sensorEntries(sensorLayers), ...staticEntries(data.region.layers)],
     [data.region.layers, sensorLayers],
+  );
+
+  // Every named site is scored with the same cell model.
+  const siteScores = useMemo(() => {
+    const m = new Map<string, SiteScore>();
+    for (const s of nav.sites) {
+      const cell = cellIndexAt(geometry, s.x, s.y);
+      const e = cell === null ? null : rec.evaluate(cell);
+      m.set(s.id, {
+        score: e?.passed ? e.score : null,
+        readiness: e ? readinessOf(e) : null,
+      });
+    }
+    return m;
+  }, [nav.sites, geometry, rec]);
+
+  const mapZones = useMemo(
+    () =>
+      state.mode === "explore"
+        ? []
+        : rec.zones.map((z, i) => ({
+            letter: ZONE_LETTERS[i]!,
+            x: z.x,
+            y: z.y,
+            cells: z.cells.map((c) => {
+              const { x, y } = cellCenter(geometry, c);
+              const h = geometry.cellSizeM / 2;
+              return [x - h, y - h, x + h, y + h] as Extent;
+            }),
+          })),
+    [state.mode, rec.zones, geometry],
+  );
+
+  const onInspectZone = useCallback(
+    (z: Zone) => {
+      const i = rec.zones.indexOf(z);
+      const site = nav.makeCustomSite(xyToLonLat(z.x, z.y), `Zone ${ZONE_LETTERS[i] ?? ""}`.trim());
+      dispatch({ type: "addCustom", site });
+      dispatch({ type: "mode", mode: "analyze" });
+    },
+    [rec.zones, nav, dispatch],
   );
 
   const setupValues: SetupValues = useMemo(
@@ -155,7 +218,7 @@ function Navigator({ data }: { data: Dataset }) {
       timeMs: nav.window.startMs,
       windowDays: state.windowDays,
       roiHalfKm: state.roiHalfKm,
-      presetId: state.presetId ?? WEIGHT_PRESETS[0]!.id,
+      presetId: state.presetId ?? SCORING_PRESETS[0]!.id,
       target: selected ? { lat: selected.site.lat, lon: selected.site.lon } : null,
     }),
     [nav.window.startMs, state.windowDays, state.roiHalfKm, state.presetId, selected],
@@ -181,6 +244,11 @@ function Navigator({ data }: { data: Dataset }) {
 
   const targetElevation =
     selectedCell !== null ? data.grid.fields.elevation.data[selectedCell]! : null;
+  const selectedReadiness =
+    selected && selectedCell !== null ? rec.explain(selectedCell, selected.site.name) : null;
+  const excludedShare = rec.scores
+    ? 1 - rec.scores.passed / Math.max(1, rec.scores.evaluated)
+    : null;
 
   return (
     <div className="flex min-h-dvh flex-col xl:h-dvh">
@@ -193,7 +261,26 @@ function Navigator({ data }: { data: Dataset }) {
             {data.region.name} · mission-planning panel · NASA LOLA + JPL Horizons
           </p>
         </div>
-        <p className="max-w-md text-right text-[10px] leading-tight text-muted">
+        <div role="tablist" aria-label="Mode" className="flex rounded-md border border-line p-0.5">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              role="tab"
+              type="button"
+              aria-selected={state.mode === m.id}
+              title={m.hint}
+              onClick={() => dispatch({ type: "mode", mode: m.id })}
+              className={`rounded px-3 py-1 text-sm transition focus-visible:outline-2 focus-visible:outline-sun ${
+                state.mode === m.id
+                  ? "bg-sun font-semibold text-background"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <p className="max-w-sm text-right text-[10px] leading-tight text-muted">
           Hackathon prototype. Every number is tagged Measured, Derived or Simulated. Thresholds are
           illustrative, not mission requirements.
         </p>
@@ -209,7 +296,7 @@ function Navigator({ data }: { data: Dataset }) {
             values={setupValues}
             coverage={nav.coverage}
             regionExtent={geometry.extentM}
-            presets={WEIGHT_PRESETS}
+            presets={SCORING_PRESETS}
             targetElevationM={targetElevation}
             onApply={onApplySetup}
             onSlip={(d) =>
@@ -219,13 +306,15 @@ function Navigator({ data }: { data: Dataset }) {
           <WeightsPanel
             weights={state.weights}
             presetId={state.presetId}
+            model={state.model}
+            excludedShare={excludedShare}
             onWeight={(id, value) => dispatch({ type: "weight", id, value })}
             onPreset={(id) => dispatch({ type: "preset", id })}
+            onModel={(model) => dispatch({ type: "model", model })}
           />
           <SiteList
-            ranking={nav.ranking}
             sites={nav.sites}
-            conditions={nav.conditions}
+            scores={siteScores}
             selectedId={state.selectedId}
             onSelect={(id) => onSelect(id)}
           />
@@ -236,7 +325,8 @@ function Navigator({ data }: { data: Dataset }) {
             <LunarMap
               region={data.region}
               sites={nav.sites}
-              ranking={nav.ranking}
+              siteScores={siteScores}
+              zones={mapZones}
               layerId={state.layerId}
               selectedId={state.selectedId}
               onSelect={onSelect}
@@ -244,28 +334,29 @@ function Navigator({ data }: { data: Dataset }) {
               gridOverlay={gridOverlay}
               roi={roi}
             />
-            <div className="absolute top-2 right-2">
+            <div className="absolute top-2 right-2 bottom-2 flex flex-col items-end">
               <LayerToggle
                 layers={layers}
                 activeId={state.layerId}
                 onChange={(id) => dispatch({ type: "layer", id })}
                 busy={
-                  isGridLayer(state.layerId) &&
-                  analysis.windowPending &&
-                  state.layerId !== "illumNow"
+                  (isGridLayer(state.layerId) &&
+                    analysis.windowPending &&
+                    state.layerId !== "illumNow") ||
+                  (state.layerId === "suitability" && rec.provisional)
                 }
               />
             </div>
             {analysis.status === "error" && (
               <div
                 role="alert"
-                className="absolute top-2 left-2 rounded bg-bad/20 px-2 py-1 text-xs text-bad"
+                className="absolute top-2 left-12 rounded bg-bad/20 px-2 py-1 text-xs text-bad"
               >
                 Analysis unavailable: {analysis.error}
               </div>
             )}
             <div className="pointer-events-none absolute bottom-8 left-2 rounded bg-panel/85 px-2 py-1 text-[11px] text-muted">
-              Click a marker, or empty ground to inspect a spot · 500 m analysis cells
+              {MODES.find((m) => m.id === state.mode)!.hint} · 500 m cells
             </div>
           </div>
           <TimeScrubber
@@ -289,36 +380,58 @@ function Navigator({ data }: { data: Dataset }) {
           aria-label="Insights"
           className="order-3 min-h-0 min-w-0 overflow-x-hidden border-line md:col-span-2 xl:col-span-1 xl:overflow-y-auto xl:border-l"
         >
-          {selected && selectedCell !== null && analysis.windowResult && (
-            <CellLightSummary
-              sun={analysis.windowResult.sunFraction[selectedCell]!}
-              earth={analysis.windowResult.earthFraction[selectedCell]!}
-              night={analysis.windowResult.longestNightHours[selectedCell]!}
-              earthGap={analysis.windowResult.longestEarthGapHours[selectedCell]!}
+          {state.mode === "recommend" ? (
+            <ZoneCards
+              rec={rec}
+              cellSizeM={geometry.cellSizeM}
+              onInspect={onInspectZone}
+              hasRoi={roi !== null}
             />
-          )}
-          {selected && selectedCell !== null && (
-            <SensorReadings
-              layers={sensorLayers}
-              cell={selectedCell}
-              timeMs={state.scrubMs}
-              ctx={{ sunNow }}
-            />
-          )}
-          {selected ? (
-            <SiteDetail
-              site={selected.site}
-              ranked={selected.ranked}
-              conditions={selected.conditions}
-              explanation={selected.explanation}
-              onRemove={
-                selected.site.kind === "custom"
-                  ? () => dispatch({ type: "removeCustom", id: selected.site.id })
-                  : undefined
-              }
-            />
+          ) : selected ? (
+            <>
+              <SiteDetail
+                site={selected.site}
+                conditions={selected.conditions}
+                readiness={
+                  selectedReadiness ? (
+                    <ReadinessCard
+                      evaluation={selectedReadiness.evaluation}
+                      explanation={selectedReadiness.explanation}
+                    />
+                  ) : (
+                    <p className="px-4 py-2 text-sm text-muted" role="status">
+                      Computing readiness for your dates…
+                    </p>
+                  )
+                }
+                onRemove={
+                  selected.site.kind === "custom"
+                    ? () => dispatch({ type: "removeCustom", id: selected.site.id })
+                    : undefined
+                }
+              />
+              {selectedCell !== null && analysis.windowResult && (
+                <CellLightSummary
+                  sun={analysis.windowResult.sunFraction[selectedCell]!}
+                  earth={analysis.windowResult.earthFraction[selectedCell]!}
+                  night={analysis.windowResult.longestNightHours[selectedCell]!}
+                  earthGap={analysis.windowResult.longestEarthGapHours[selectedCell]!}
+                />
+              )}
+              {selectedCell !== null && (
+                <SensorReadings
+                  layers={sensorLayers}
+                  cell={selectedCell}
+                  timeMs={state.scrubMs}
+                  ctx={{ sunNow }}
+                />
+              )}
+            </>
           ) : (
-            <Intro onPick={() => nav.ranking[0] && onSelect(nav.ranking[0].siteId)} />
+            <Intro
+              mode={state.mode}
+              onRecommend={() => dispatch({ type: "mode", mode: "recommend" })}
+            />
           )}
           {analysis.validation && <ValidationNote v={analysis.validation} />}
           <Attribution lines={data.region.attribution} />
@@ -375,25 +488,30 @@ function ValidationNote({
   );
 }
 
-function Intro({ onPick }: { onPick: () => void }) {
+function Intro({ mode, onRecommend }: { mode: Mode; onRecommend: () => void }) {
   return (
     <section className="space-y-3 px-4 py-4 text-sm">
       <h2 className="text-lg font-semibold">Where (and when) should we land?</h2>
       <p className="text-muted">
         At the lunar south pole the Sun and Earth hug the horizon. A ridge a few kilometres away can
-        mean weeks of darkness or no radio link. The map shows sunlight for <em>your</em> dates,
-        computed against the real LOLA terrain.
+        mean weeks of darkness or no radio link. Everything here is computed for <em>your</em> dates
+        against the real LOLA terrain.
       </p>
       <ol className="list-decimal space-y-1 pl-5 text-muted">
         <li>Set the landing time and mission window on the left.</li>
         <li>Press ▶ below the map to watch light and shadow move.</li>
-        <li>Click any spot to see how much sunlight and Earth contact it gets.</li>
+        <li>
+          {mode === "analyze"
+            ? "Click any point on the map to see why it is good or bad."
+            : "Get the 3 best landing zones, with plain-language reasons."}
+        </li>
       </ol>
       <button
-        onClick={onPick}
+        type="button"
+        onClick={onRecommend}
         className="rounded border border-sun/60 px-3 py-1 text-sun hover:bg-sun/10 focus-visible:outline-2 focus-visible:outline-sun"
       >
-        Show the top-ranked site →
+        Show the top 3 landing zones →
       </button>
     </section>
   );

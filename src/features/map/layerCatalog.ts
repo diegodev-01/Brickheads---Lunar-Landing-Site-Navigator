@@ -16,7 +16,7 @@ import {
   type Palette,
 } from "./heatmap";
 
-export type GridLayerId = "illumWindow" | "illumNow" | "earthWindow";
+export type GridLayerId = "suitability" | "illumWindow" | "illumNow" | "earthWindow";
 
 export interface LayerEntry {
   id: string;
@@ -47,6 +47,23 @@ const HORIZON_SOURCE =
   "Computed in your browser from JPL Horizons Sun/Earth positions and terrain horizons ray-cast over the LOLA DEM (500 m cells).";
 
 export const GRID_LAYERS: readonly GridLayerDef[] = [
+  {
+    id: "suitability",
+    kind: "grid",
+    label: "Overall suitability",
+    help: "How good each 500 m cell is for landing, for your dates and priorities. Hatched cells fail a safety or comms limit.",
+    palette: { id: "suitability", stops: ["#d6604d", "#fee08b", "#1b7837"] },
+    legend: {
+      stops: ["#d6604d", "#fee08b", "#1b7837"],
+      minLabel: "✗ poor",
+      maxLabel: "✓ good",
+      lowMeaning: "Red, dotted: poor (<55)",
+      highMeaning: "Green: good (75+)",
+    },
+    provenance: "derived",
+    source:
+      "Two-stage model (docs/scoring-model.md): hard gates, then a weighted score of safety, science, comms and power.",
+  },
   {
     id: "illumWindow",
     kind: "grid",

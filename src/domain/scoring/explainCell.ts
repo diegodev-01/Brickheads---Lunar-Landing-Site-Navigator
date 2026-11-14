@@ -125,7 +125,16 @@ export function explainCell(
     for (const g of failed) {
       reasons.push({ icon: "⛔", text: capitalise(gatePhrase(g)), tone: "bad" });
     }
-    const best = sorted[0];
+    // "Otherwise" must not praise a factor that a failed gate contradicts (e.g. safety after a slope fail).
+    const GATE_FACTOR: Record<GateResult["id"], Factor> = {
+      slope: "safety",
+      roughness: "safety",
+      boulders: "safety",
+      comms: "comms",
+      darkness: "power",
+    };
+    const blocked = new Set(failed.map((g) => GATE_FACTOR[g.id]));
+    const best = sorted.find((f) => !blocked.has(f.id) && f.normalized >= 0.4);
     if (best && reasons.length < 4) {
       reasons.push({ icon: ICON[best.id], text: `Otherwise: ${factorPhrase(best)}`, tone: "info" });
     }

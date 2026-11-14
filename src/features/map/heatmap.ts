@@ -107,3 +107,72 @@ export const MINERAL_PALETTE: Palette = {
   id: "mineral",
   stops: ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"],
 };
+
+/**
+ * Suitability classes. Green / yellow / red as requested, made colour-blind-safe by ALSO using
+ * lightness (dark green vs light yellow) and patterns: poor = dot pattern, excluded = diagonal hatch.
+ */
+export const SUITABILITY = {
+  good: { color: [27, 120, 55], label: "✓ Good (75+)" },
+  possible: { color: [254, 224, 139], label: "~ Possible (55–75)" },
+  poor: { color: [214, 96, 77], label: "✗ Poor (<55), dotted" },
+  excluded: { color: [74, 82, 99], label: "⛔ Excluded, hatched" },
+} as const;
+
+/** Pixels per cell for patterned rendering. */
+export const PATTERN_SCALE = 4;
+
+/**
+ * Paints suitability classes with patterns at PATTERN_SCALE px per cell.
+ * score NaN + failed bitmask 0 < bits < 255 → excluded; 255 → not evaluated (transparent).
+ */
+export function paintSuitability(
+  canvas: HTMLCanvasElement,
+  g: GridGeometry,
+  score: Float32Array,
+  failed: Uint8Array,
+  alpha = 230,
+): HTMLCanvasElement {
+  const k = PATTERN_SCALE;
+  canvas.width = g.cols * k;
+  canvas.height = g.rows * k;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+  const img = ctx.createImageData(canvas.width, canvas.height);
+  const W = canvas.width;
+  for (let row = 0; row < g.rows; row++) {
+    for (let col = 0; col < g.cols; col++) {
+      const i = row * g.cols + col;
+      const f = failed[i]!;
+      if (f === 255) continue;
+      const s = score[i]!;
+      const cls = f !== 0 ? "excluded" : s >= 75 ? "good" : s >= 55 ? "possible" : "poor";
+      const [r, gg, b] = SUITABILITY[cls].color;
+      for (let py = 0; py < k; py++) {
+        for (let px = 0; px < k; px++) {
+          const X = col * k + px;
+          const Y = row * k + py;
+          const o = (Y * W + X) * 4;
+          let a = alpha;
+          let rr: number = r;
+          let g2: number = gg;
+          let bb: number = b;
+          if (cls === "excluded") {
+            // diagonal hatch: stripes every 4 px, gaps nearly transparent
+            if ((X + Y) % 4 !== 0) a = 60;
+          } else if (cls === "poor" && X % 4 === 1 && Y % 4 === 1) {
+            rr = 40;
+            g2 = 10;
+            bb = 10; // dark dot
+          }
+          img.data[o] = rr;
+          img.data[o + 1] = g2;
+          img.data[o + 2] = bb;
+          img.data[o + 3] = a;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return canvas;
+}

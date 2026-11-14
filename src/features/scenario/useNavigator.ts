@@ -2,14 +2,16 @@
 
 import { useMemo, useReducer } from "react";
 import { lonLatToXY } from "@/domain/geo/polarStereo";
+import { cellHorizonProfile, cellIndexAt } from "@/domain/grid/grid";
 import {
-  DEFAULT_WEIGHTS,
-  WEIGHT_PRESETS,
-  type FactorId,
-  type Weights,
-} from "@/domain/scoring/config";
-import { explain, type Explanation } from "@/domain/scoring/explain";
-import { rankSites, type RankedSite } from "@/domain/scoring/score";
+  DEFAULT_PRESET_ID,
+  defaultModelConfig,
+  presetWeights,
+  setWeight,
+  type Factor,
+  type FactorWeights,
+  type ScoringModelConfig,
+} from "@/domain/scoring/model";
 import type { LonLat, Site, SiteConditions } from "@/domain/types";
 import { computeConditions, ephemerisCoverage } from "@/domain/visibility/windows";
 import type { Dataset } from "./useDataset";
@@ -17,24 +19,31 @@ import type { Dataset } from "./useDataset";
 const DAY_MS = 86_400_000;
 export const LUNAR_DAY_DAYS = 29.53;
 
+export type Mode = "explore" | "recommend" | "analyze";
+
 export interface NavigatorState {
-  weights: Weights;
+  mode: Mode;
+  weights: FactorWeights;
+  /** null once the user edits a weight by hand. */
   presetId: string | null;
+  model: ScoringModelConfig;
   /** Landing time = start of the analysis window (UTC ms). */
   windowStartMs: number;
   windowDays: number;
   /** Time shown by the scrubber, inside the window. */
   scrubMs: number;
-  /** Half-width of the region of interest around the selected point, km. */
+  /** Half-width of the region of interest around the target, km. */
   roiHalfKm: number;
   selectedId: string | null;
   layerId: string;
   customSites: Site[];
 }
 
-type Action =
-  | { type: "weight"; id: FactorId; value: number }
+export type Action =
+  | { type: "mode"; mode: Mode }
+  | { type: "weight"; id: Factor; value: number }
   | { type: "preset"; id: string }
+  | { type: "model"; model: ScoringModelConfig }
   | { type: "windowStart"; ms: number }
   | { type: "scrub"; ms: number }
   | {
@@ -50,34 +59,43 @@ type Action =
   | { type: "select"; id: string | null }
   | { type: "layer"; id: string }
   | { type: "addCustom"; site: Site }
-  | { type: "removeCustom"; id: string };
+  | { type: "removeCustom"; id: string }
+  | { type: "loadScenario"; state: Partial<NavigatorState> };
 
-function reducer(s: NavigatorState, a: Action): NavigatorState {
+/** Layer each mode switches to when entered. */
+const MODE_LAYER: Record<Mode, string | null> = {
+  explore: null,
+  recommend: "suitability",
+  analyze: "suitability",
+};
+
+export function reducer(s: NavigatorState, a: Action): NavigatorState {
   switch (a.type) {
+    case "mode":
+      return { ...s, mode: a.mode, layerId: MODE_LAYER[a.mode] ?? s.layerId };
     case "weight":
-      return { ...s, weights: { ...s.weights, [a.id]: a.value }, presetId: null };
-    case "preset": {
-      const p = WEIGHT_PRESETS.find((x) => x.id === a.id);
-      return p ? { ...s, weights: { ...p.weights }, presetId: p.id } : s;
-    }
+      return { ...s, weights: setWeight(s.weights, a.id, a.value), presetId: null };
+    case "preset":
+      return { ...s, weights: presetWeights(a.id), presetId: a.id };
+    case "model":
+      return { ...s, model: a.model };
     case "windowStart":
       return { ...s, windowStartMs: a.ms, scrubMs: a.ms };
     case "windowDays":
       return { ...s, windowDays: a.days, scrubMs: s.windowStartMs };
     case "scrub":
       return { ...s, scrubMs: a.ms };
-    case "applySetup": {
-      const p = WEIGHT_PRESETS.find((x) => x.id === a.presetId);
+    case "applySetup":
       return {
         ...s,
         windowStartMs: a.startMs,
         scrubMs: a.startMs,
         windowDays: a.days,
         roiHalfKm: a.roiHalfKm,
-        ...(p ? { weights: { ...p.weights }, presetId: p.id } : {}),
+        weights: presetWeights(a.presetId),
+        presetId: a.presetId,
         ...(a.site ? { customSites: [...s.customSites, a.site], selectedId: a.site.id } : {}),
       };
-    }
     case "select":
       return { ...s, selectedId: a.id };
     case "layer":
@@ -90,6 +108,8 @@ function reducer(s: NavigatorState, a: Action): NavigatorState {
         customSites: s.customSites.filter((c) => c.id !== a.id),
         selectedId: s.selectedId === a.id ? null : s.selectedId,
       };
+    case "loadScenario":
+      return { ...s, ...a.state };
   }
 }
 
@@ -106,6 +126,22 @@ function defaultStart(cov: { startMs: number; endMs: number }): number {
   return today >= cov.startMs && today < cov.endMs - LUNAR_DAY_DAYS * DAY_MS ? today : cov.startMs;
 }
 
+export function initialState(coverageStartMs: number, start: number): NavigatorState {
+  return {
+    mode: "explore",
+    weights: presetWeights(DEFAULT_PRESET_ID),
+    presetId: DEFAULT_PRESET_ID,
+    model: defaultModelConfig(),
+    windowStartMs: Math.max(start, coverageStartMs),
+    scrubMs: Math.max(start, coverageStartMs),
+    windowDays: 14,
+    roiHalfKm: 10,
+    selectedId: null,
+    layerId: "illumWindow",
+    customSites: [],
+  };
+}
+
 export interface NavigatorView {
   state: NavigatorState;
   dispatch: React.Dispatch<Action>;
@@ -113,29 +149,15 @@ export interface NavigatorView {
   window: { startMs: number; endMs: number };
   coverage: { startMs: number; endMs: number };
   conditions: Map<string, SiteConditions>;
-  ranking: RankedSite[];
-  selected: {
-    site: Site;
-    ranked: RankedSite;
-    conditions: SiteConditions;
-    explanation: Explanation;
-  } | null;
+  selected: { site: Site; conditions: SiteConditions } | null;
   makeCustomSite: (p: LonLat, label?: string) => Site;
 }
 
 export function useNavigator(data: Dataset): NavigatorView {
   const coverage = useMemo(() => ephemerisCoverage(data.ephemeris), [data.ephemeris]);
-  const [state, dispatch] = useReducer(reducer, undefined, () => ({
-    weights: { ...DEFAULT_WEIGHTS },
-    presetId: WEIGHT_PRESETS[0]!.id,
-    windowStartMs: defaultStart(coverage),
-    scrubMs: defaultStart(coverage),
-    windowDays: 14,
-    roiHalfKm: 10,
-    selectedId: null,
-    layerId: "illumWindow",
-    customSites: [],
-  }));
+  const [state, dispatch] = useReducer(reducer, undefined, () =>
+    initialState(coverage.startMs, defaultStart(coverage)),
+  );
 
   const sites = useMemo(
     () => [...data.sites, ...state.customSites],
@@ -146,37 +168,39 @@ export function useNavigator(data: Dataset): NavigatorView {
     [state.windowStartMs, state.windowDays, coverage],
   );
 
-  // The expensive part (~30k trig evaluations): only re-runs when sites or the window change.
-  const conditions = useMemo(
-    () => new Map(sites.map((s) => [s.id, computeConditions(s, data.ephemeris, win)])),
-    [sites, data.ephemeris, win],
-  );
-
-  // Cheap: re-runs on every weight change, so the ranking updates live.
-  const ranking = useMemo(
-    () => rankSites(sites, conditions, state.weights, state.windowDays),
-    [sites, conditions, state.weights, state.windowDays],
-  );
+  // Fine-grained (720-bin) Sun/Earth tracks for the site panels; only for the selected site.
+  const selectedSite = sites.find((s) => s.id === state.selectedId) ?? null;
+  const conditions = useMemo(() => {
+    const m = new Map<string, SiteConditions>();
+    if (selectedSite) m.set(selectedSite.id, computeConditions(selectedSite, data.ephemeris, win));
+    return m;
+  }, [selectedSite, data.ephemeris, win]);
 
   const selected = useMemo(() => {
-    const site = sites.find((s) => s.id === state.selectedId);
-    const ranked = ranking.find((r) => r.siteId === state.selectedId);
-    const cond = state.selectedId ? conditions.get(state.selectedId) : undefined;
-    if (!site || !ranked || !cond) return null;
-    return { site, ranked, conditions: cond, explanation: explain(ranked, ranking.length) };
-  }, [sites, ranking, conditions, state.selectedId]);
+    if (!selectedSite) return null;
+    const cond = conditions.get(selectedSite.id);
+    return cond ? { site: selectedSite, conditions: cond } : null;
+  }, [selectedSite, conditions]);
 
   const makeCustomSite = (p: LonLat, label?: string): Site => {
     const { x, y } = lonLatToXY(p);
     const n = Math.max(0, ...state.customSites.map((c) => Number(c.id.slice(1)) || 0)) + 1;
+    // Inside the grid, a custom point inherits its 500 m cell's ray-cast terrain horizon.
+    const cell = cellIndexAt(data.grid.geometry, x, y);
+    const h = data.grid.horizon;
     return {
       id: `C${n}`,
-      name: label ?? `Custom ${p.lat.toFixed(2)}°, ${p.lon.toFixed(2)}°E`,
+      name: label ?? `Point ${p.lat.toFixed(3)}°, ${p.lon.toFixed(2)}°E`,
       kind: "custom",
       lat: p.lat,
       lon: p.lon,
       x,
       y,
+      elevationM: cell === null ? undefined : data.grid.fields.elevation.data[cell],
+      horizon:
+        cell === null
+          ? undefined
+          : { startAzDeg: 0, stepDeg: h.binDeg, elevationDeg: cellHorizonProfile(h, cell) },
       provenance: "derived",
     };
   };
@@ -188,7 +212,6 @@ export function useNavigator(data: Dataset): NavigatorView {
     window: win,
     coverage,
     conditions,
-    ranking,
     selected,
     makeCustomSite,
   };

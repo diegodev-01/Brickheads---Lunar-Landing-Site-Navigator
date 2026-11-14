@@ -209,6 +209,15 @@ describe("explanations", () => {
     expect(x.sentence).toMatch(/too rough/);
     expect(x.sentence).toMatch(/no radio contact/);
   });
+  it("never praises a factor that a failed gate contradicts", () => {
+    const c = { ...perfect() };
+    c.safeRadiusM[5] = 80;
+    const x = explainCell(evaluateCell(c, cfg, HIGH, W));
+    expect(x.reasons.some((r) => /flat spot/.test(r.text) && r.text.startsWith("Otherwise"))).toBe(
+      false,
+    );
+    expect(x.reasons.some((r) => r.text.startsWith("Otherwise"))).toBe(true);
+  });
   it("maps scores to readiness bands", () => {
     const e = evaluateCell(perfect(), cfg, HIGH, W);
     expect(readinessOf({ ...e, score: 80 })).toBe("good");

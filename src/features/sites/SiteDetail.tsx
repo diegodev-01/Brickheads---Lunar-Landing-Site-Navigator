@@ -1,9 +1,6 @@
 "use client";
 
 import { Badge, Panel, ProvenanceBadge } from "@/components/ui/Panel";
-import { scoreColor } from "@/components/ui/scoreColor";
-import type { Explanation } from "@/domain/scoring/explain";
-import type { RankedSite } from "@/domain/scoring/score";
 import type { BodyVisibility, Site, SiteConditions } from "@/domain/types";
 import { HorizonView } from "@/features/sky/HorizonView";
 import { Timeline } from "@/features/sky/Timeline";
@@ -11,14 +8,14 @@ import { formatDateTime, formatDuration } from "@/features/sky/format";
 
 interface Props {
   site: Site;
-  ranked: RankedSite;
   conditions: SiteConditions;
-  explanation: Explanation;
+  /** Readiness summary for this point (rendered under the header). */
+  readiness?: React.ReactNode;
   onRemove?: () => void;
 }
 
-export function SiteDetail({ site, ranked, conditions, explanation, onRemove }: Props) {
-  const nogo = ranked.flags.length > 0;
+/** Point details: identity, Sun/Earth at landing, horizon panorama and clearance timeline. */
+export function SiteDetail({ site, conditions, readiness, onRemove }: Props) {
   return (
     <div>
       <section className="border-b border-line px-4 py-3">
@@ -31,20 +28,14 @@ export function SiteDetail({ site, ranked, conditions, explanation, onRemove }: 
             </p>
             <div className="mt-1 flex flex-wrap gap-1">
               <ProvenanceBadge value={site.provenance} />
-              {site.kind === "custom" && (
+              {site.kind === "custom" && !site.horizon && (
                 <Badge tone="warn">smooth-sphere horizon (no terrain)</Badge>
+              )}
+              {site.kind === "custom" && site.horizon && (
+                <Badge>horizon of its 500 m cell (4° bins)</Badge>
               )}
               {site.kind === "reference" && <Badge>reference: crater floor</Badge>}
             </div>
-          </div>
-          <div className="text-right">
-            <div
-              className="font-mono text-3xl leading-none"
-              style={{ color: nogo ? "#8b95a8" : scoreColor(ranked.score) }}
-            >
-              {Math.round(ranked.score)}
-            </div>
-            <div className="text-[10px] text-muted">/100 · #{ranked.rank}</div>
           </div>
         </div>
         {onRemove && (
@@ -52,60 +43,12 @@ export function SiteDetail({ site, ranked, conditions, explanation, onRemove }: 
             onClick={onRemove}
             className="mt-2 text-[11px] text-muted underline hover:text-bad"
           >
-            Remove custom site
+            Remove this point
           </button>
         )}
       </section>
 
-      <Panel title="Why this score">
-        <p className="mb-2 text-sm">{explanation.headline}</p>
-        {explanation.caveats.map((c) => (
-          <p key={c} className="mb-1 text-xs text-bad">
-            {c}
-          </p>
-        ))}
-        <ul className="space-y-0.5 text-xs">
-          {explanation.strengths.map((s) => (
-            <li key={s} className="text-good">
-              ▲ {s}
-            </li>
-          ))}
-          {explanation.weaknesses.map((s) => (
-            <li key={s} className="text-warn">
-              ▼ {s}
-            </li>
-          ))}
-        </ul>
-        <div className="mt-3 space-y-1.5">
-          {ranked.factors.map((f) => (
-            <div
-              key={f.id}
-              className="grid grid-cols-[84px_1fr_74px] items-center gap-2 text-xs"
-              title={f.why}
-            >
-              <span className={f.weight === 0 || f.normalized === null ? "text-muted" : ""}>
-                {f.label}
-              </span>
-              <span className="h-2 overflow-hidden rounded bg-line">
-                <span
-                  className="block h-full"
-                  style={{
-                    width: `${(f.normalized ?? 0) * 100}%`,
-                    background: scoreColor((f.normalized ?? 0) * 100),
-                    opacity: f.weight ? 1 : 0.35,
-                  }}
-                />
-              </span>
-              <span className="text-right font-mono text-[11px] text-muted">
-                {f.raw === null ? "n/a" : `${f.raw.toFixed(f.unit === "%" ? 0 : 1)}${f.unit}`}
-                {f.weight > 0 && f.normalized !== null && (
-                  <span className="text-foreground"> +{Math.round(f.points)}</span>
-                )}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Panel>
+      {readiness}
 
       <Panel title={`At landing · ${formatDateTime(conditions.sun.times[0] ?? 0)}`}>
         <div className="grid grid-cols-2 gap-2">

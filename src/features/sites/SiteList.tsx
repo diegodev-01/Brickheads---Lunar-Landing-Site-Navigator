@@ -1,72 +1,66 @@
 "use client";
 
 import { Badge, Panel } from "@/components/ui/Panel";
-import { scoreColor } from "@/components/ui/scoreColor";
-import type { RankedSite } from "@/domain/scoring/score";
-import type { Site, SiteConditions } from "@/domain/types";
+import type { Readiness } from "@/domain/scoring/explainCell";
+import type { Site } from "@/domain/types";
+
+export interface SiteScore {
+  score: number | null;
+  readiness: Readiness | null;
+}
 
 interface Props {
-  ranking: RankedSite[];
   sites: Site[];
-  conditions: Map<string, SiteConditions>;
+  scores: Map<string, SiteScore>;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export function SiteList({ ranking, sites, conditions, selectedId, onSelect }: Props) {
-  const byId = new Map(sites.map((s) => [s.id, s]));
+const MARK: Record<Readiness, { icon: string; cls: string }> = {
+  good: { icon: "✓", cls: "text-good" },
+  possible: { icon: "~", cls: "text-warn" },
+  poor: { icon: "✗", cls: "text-bad" },
+  excluded: { icon: "⛔", cls: "text-bad" },
+};
+
+/** Named sites (auto-picked candidates, crater-floor references, your points), ranked by the cell model. */
+export function SiteList({ sites, scores, selectedId, onSelect }: Props) {
+  const ranked = [...sites].sort((a, b) => {
+    const sa = scores.get(a.id)?.score ?? -1;
+    const sb = scores.get(b.id)?.score ?? -1;
+    return sb - sa;
+  });
   return (
-    <Panel title={`Ranked sites (${ranking.length})`}>
+    <Panel title={`Named sites (${sites.length})`}>
       <ol className="-mx-2 space-y-0.5">
-        {ranking.map((r) => {
-          const site = byId.get(r.siteId)!;
-          const c = conditions.get(r.siteId);
-          const nogo = r.flags.length > 0;
+        {ranked.map((site) => {
+          const s = scores.get(site.id);
+          const m = s?.readiness ? MARK[s.readiness] : null;
           return (
-            <li key={r.siteId}>
+            <li key={site.id}>
               <button
-                onClick={() => onSelect(r.siteId)}
-                className={`grid w-full grid-cols-[22px_1fr_44px] items-center gap-2 rounded px-2 py-1.5 text-left transition ${
-                  r.siteId === selectedId ? "bg-panel-2 ring-1 ring-sun/60" : "hover:bg-panel-2"
+                type="button"
+                onClick={() => onSelect(site.id)}
+                aria-current={site.id === selectedId}
+                className={`grid w-full grid-cols-[1fr_auto] items-center gap-2 rounded px-2 py-1.5 text-left transition focus-visible:outline-2 focus-visible:outline-sun ${
+                  site.id === selectedId ? "bg-panel-2 ring-1 ring-sun/60" : "hover:bg-panel-2"
                 }`}
               >
-                <span className="font-mono text-xs text-muted">{r.rank}</span>
                 <span className="min-w-0">
                   <span className="flex items-center gap-1.5">
                     <span className="truncate text-sm">{site.name}</span>
                     <span className="font-mono text-[10px] text-muted">{site.id}</span>
-                    {nogo && <Badge tone="bad">no-go</Badge>}
-                    {site.kind === "custom" && <Badge tone="warn">no terrain</Badge>}
-                    {site.kind === "reference" && <Badge>reference</Badge>}
-                  </span>
-                  <span className="mt-0.5 flex gap-3 font-mono text-[10px] text-muted">
-                    <span className="text-sun">
-                      ☀ {c ? Math.round(c.sun.fraction * 100) : "–"}%
-                    </span>
-                    <span className="text-earth">
-                      ⊕ {c ? Math.round(c.earth.fraction * 100) : "–"}%
-                    </span>
-                    {site.slopeMeanDeg !== undefined && (
-                      <span>∠ {site.slopeMeanDeg.toFixed(1)}°</span>
-                    )}
+                    {site.kind === "reference" && <Badge>crater floor</Badge>}
+                    {site.kind === "custom" && <Badge tone="warn">your point</Badge>}
                   </span>
                 </span>
-                <span className="flex flex-col items-end gap-1">
-                  <span
-                    className="font-mono text-sm"
-                    style={{ color: nogo ? "#8b95a8" : scoreColor(r.score) }}
-                  >
-                    {Math.round(r.score)}
-                  </span>
-                  <span className="h-1 w-10 overflow-hidden rounded bg-line">
-                    <span
-                      className="block h-full"
-                      style={{
-                        width: `${r.score}%`,
-                        background: nogo ? "#4a5263" : scoreColor(r.score),
-                      }}
-                    />
-                  </span>
+                <span className={`font-mono text-sm ${m?.cls ?? "text-muted"}`}>
+                  {m && <span aria-hidden="true">{m.icon} </span>}
+                  {s?.readiness === "excluded"
+                    ? "no-go"
+                    : s?.score === null || s?.score === undefined
+                      ? "–"
+                      : Math.round(s.score)}
                 </span>
               </button>
             </li>
