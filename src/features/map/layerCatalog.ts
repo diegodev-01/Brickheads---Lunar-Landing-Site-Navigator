@@ -16,7 +16,8 @@ import {
   type Palette,
 } from "./heatmap";
 
-export type GridLayerId = "suitability" | "illumWindow" | "illumNow" | "earthWindow";
+export type GridLayerId =
+  "suitability" | "illumWindow" | "illumNow" | "earthWindow" | "relayWindow";
 
 export interface LayerEntry {
   id: string;
@@ -111,6 +112,23 @@ export const GRID_LAYERS: readonly GridLayerDef[] = [
     },
     provenance: "derived",
     source: HORIZON_SOURCE,
+  },
+  {
+    id: "relayWindow",
+    kind: "grid",
+    label: "Relay contact (simulated)",
+    help: "Share of the window a relay satellite in a halo orbit (NRHO) is above the local terrain and can pass data to Earth.",
+    palette: MINERAL_PALETTE,
+    legend: {
+      stops: MINERAL_PALETTE.stops,
+      minLabel: "0 %",
+      maxLabel: "100 %",
+      lowMeaning: "Dark: relay hidden by terrain",
+      highMeaning: "Yellow: relay almost always reachable",
+    },
+    provenance: "simulated",
+    source:
+      "Simplified Keplerian proxy of a 9:2 southern NRHO (period 6.56 d) vs LOLA terrain horizons. Not a real relay ephemeris.",
   },
 ];
 

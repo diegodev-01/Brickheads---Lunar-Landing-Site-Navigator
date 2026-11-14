@@ -75,6 +75,8 @@ export function useRecommendation(
               longestNightH: windowResult.longestNightHours,
               dteFraction: windowResult.earthFraction,
               dteGapH: windowResult.longestEarthGapHours,
+              relayFraction: windowResult.relayFraction,
+              relayGapH: windowResult.relayGapHours,
             },
           }
         : null,
@@ -103,10 +105,9 @@ export function useRecommendation(
     (cell: number, name?: string) => {
       const evaluation = evaluate(cell);
       if (!evaluation) return null;
-      return {
-        evaluation,
-        explanation: explainCell(evaluation, name, { simulatedInputs: SIMULATED_INPUTS }),
-      };
+      const viaRelay = evaluation.factors.find((f) => f.id === "comms")?.raw.viaRelay === 1;
+      const simulatedInputs = viaRelay ? [...SIMULATED_INPUTS, "Relay orbit"] : SIMULATED_INPUTS;
+      return { evaluation, explanation: explainCell(evaluation, name, { simulatedInputs }) };
     },
     [evaluate],
   );

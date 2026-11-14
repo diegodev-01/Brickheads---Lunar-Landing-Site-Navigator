@@ -79,3 +79,17 @@ Newest last. Format: decision, why, how to revisit.
     legend stays visible.
 29. **Custom points inherit their 500 m cell's horizon** (90 × 4° bins) instead of a smooth sphere when inside
     the grid.
+
+## Step 4: relay comms (2026-11-14)
+
+30. **Relay = Keplerian proxy of a 9:2 southern NRHO** (see comms-model.md). It is simple, testable and fast enough
+    to run for 40k cells per window. A real three-body / SPICE ephemeris can replace `relayPosition()` without
+    touching the rest of the code.
+31. **Contact needs 2° clearance above the terrain AND relay→Earth visibility.** The link is end-to-end, not just
+    lander→relay.
+32. **Relay per-cell sampling uses the same step as illumination (1–4 h); the point timeline uses 10 min.** The
+    7 h perilune blackout is resolved in the point view and approximated on the grid.
+33. **Connectivity = best of DTE and relay**, so a site with no Earth view can still pass the comms gate via the
+    relay. Explanations then add "Relay orbit … is simulated".
+34. **Band parameters are illustrative** (order of magnitude of small-lander proximity links) and editable in
+    `BANDS`. The UI shows the data rate at the mean contact range for the chosen band.

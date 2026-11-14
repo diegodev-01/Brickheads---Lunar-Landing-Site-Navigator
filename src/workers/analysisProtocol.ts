@@ -1,4 +1,5 @@
 /** Message types between the UI thread and analysis.worker.ts. Plain data only (structured-clone safe). */
+import type { RelayPointSeries } from "@/domain/comms/relayGrid";
 import type { GridValidation } from "@/domain/grid/grid";
 import type { PointSeries } from "@/domain/illumination/illumination";
 import type { Body, TimeWindow } from "@/domain/types";
@@ -20,6 +21,9 @@ export interface WindowResult {
   /** Per cell, hours. */
   longestNightHours: Float32Array;
   longestEarthGapHours: Float32Array;
+  /** SIMULATED relay (NRHO proxy): share of the window in contact, and longest gap (h), per cell. */
+  relayFraction: Float32Array;
+  relayGapHours: Float32Array;
   computeMs: number;
 }
 
@@ -44,6 +48,8 @@ export interface SeriesResult {
   cell: number;
   sun: PointSeries;
   earth: PointSeries;
+  /** 10-minute relay series with contact windows and latency. */
+  relay: RelayPointSeries;
 }
 
 export type AnalysisResponse =

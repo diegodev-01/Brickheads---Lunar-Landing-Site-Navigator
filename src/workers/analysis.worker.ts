@@ -10,6 +10,13 @@
  * The worker loads the grid and ephemeris itself through the data provider (no big copies).
  */
 import { getDataProvider } from "@/data";
+import { NRHO_9_2_SOUTH } from "@/domain/comms/relay";
+import {
+  createRelayAccumulator,
+  relayPointSeries,
+  type RelayLinkConfig,
+  type RelayWindowResult,
+} from "@/domain/comms/relayGrid";
 import { localSky } from "@/domain/ephemeris/localSky";
 import { xyToLonLat } from "@/domain/geo/polarStereo";
 import { cellsInExtent, type AnalysisGrid } from "@/domain/grid/grid";
@@ -38,6 +45,8 @@ let currentWindowId = 0;
 /** Samples per slice before yielding (~50 ms of work). */
 const SLICE = 24;
 const COARSE_STEP_HOURS = 6;
+/** Relay link parameters (docs/comms-model.md). */
+const RELAY: RelayLinkConfig = { orbit: NRHO_9_2_SOUTH, minClearanceDeg: 2 };
 
 const post = (msg: AnalysisResponse, transfer: Transferable[] = []) =>
   self.postMessage(msg, transfer);
@@ -61,6 +70,7 @@ function postWindow(
   req: WindowRequest,
   sun: WindowVisibility,
   earth: WindowVisibility,
+  relay: RelayWindowResult,
   partial: boolean,
   t0: number,
 ) {
@@ -73,6 +83,8 @@ function postWindow(
     earthFraction: earth.fraction,
     longestNightHours: sun.longestGapHours,
     longestEarthGapHours: earth.longestGapHours,
+    relayFraction: relay.fraction,
+    relayGapHours: relay.longestGapHours,
     computeMs: performance.now() - t0,
   };
   post(msg, [
@@ -80,6 +92,8 @@ function postWindow(
     earth.fraction.buffer,
     sun.longestGapHours.buffer,
     earth.longestGapHours.buffer,
+    relay.fraction.buffer,
+    relay.longestGapHours.buffer,
   ]);
 }
 
@@ -89,6 +103,7 @@ async function runWindow(s: State, req: WindowRequest) {
   const make = (step: number) => ({
     sun: createWindowAccumulator(grid, frames, eph, req.window, "sun", step),
     earth: createWindowAccumulator(grid, frames, eph, req.window, "earth", step),
+    relay: createRelayAccumulator(grid, frames, eph, req.window, RELAY, step),
   });
 
   // 1. Coarse preview (cheap), so the heatmap appears at once.
@@ -96,7 +111,8 @@ async function runWindow(s: State, req: WindowRequest) {
     const c = make(COARSE_STEP_HOURS);
     c.sun.advance(c.sun.samples);
     c.earth.advance(c.earth.samples);
-    postWindow(req, c.sun.result(), c.earth.result(), true, t0);
+    c.relay.advance(c.relay.samples);
+    postWindow(req, c.sun.result(), c.earth.result(), c.relay.result(), true, t0);
     await yieldNow();
   }
 
@@ -106,10 +122,11 @@ async function runWindow(s: State, req: WindowRequest) {
     if (req.id !== currentWindowId) return; // superseded by a newer window
     const sunDone = f.sun.advance(SLICE);
     const earthDone = f.earth.advance(SLICE);
-    if (sunDone && earthDone) break;
+    const relayDone = f.relay.advance(SLICE);
+    if (sunDone && earthDone && relayDone) break;
     await yieldNow();
   }
-  postWindow(req, f.sun.result(), f.earth.result(), false, t0);
+  postWindow(req, f.sun.result(), f.earth.result(), f.relay.result(), false, t0);
 }
 
 function handle(req: AnalysisRequest) {
@@ -151,6 +168,14 @@ function handle(req: AnalysisRequest) {
         cell: req.cell,
         sun: pointSeries(grid, req.cell, eph, req.window, "sun", req.stepHours),
         earth: pointSeries(grid, req.cell, eph, req.window, "earth", req.stepHours),
+        relay: relayPointSeries(
+          grid,
+          buildCellFrames(grid, Int32Array.of(req.cell)),
+          eph,
+          req.window,
+          RELAY,
+          10,
+        ),
       });
     }
   } catch (e) {

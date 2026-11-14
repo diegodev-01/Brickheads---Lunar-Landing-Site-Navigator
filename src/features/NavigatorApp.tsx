@@ -12,6 +12,7 @@ import { SCORING_PRESETS } from "@/domain/scoring/model";
 import { createSensorLayers } from "@/domain/sensors/sensors";
 import type { LonLat } from "@/domain/types";
 import { useAnalysis } from "./analysis/useAnalysis";
+import { CommsTimeline } from "./comms/CommsTimeline";
 import { SensorReadings } from "./insights/SensorReadings";
 import { paintGrid, paintSuitability, paletteLut } from "./map/heatmap";
 import {
@@ -152,7 +153,9 @@ function Navigator({ data }: { data: Dataset }) {
         ? analysis.snapshot?.sun
         : state.layerId === "earthWindow"
           ? analysis.windowResult?.earthFraction
-          : analysis.windowResult?.sunFraction;
+          : state.layerId === "relayWindow"
+            ? analysis.windowResult?.relayFraction
+            : analysis.windowResult?.sunFraction;
     if (!values) return null;
     const c = paintGrid(canvas(), geometry, values, 0, 1, LUTS[state.layerId]!);
     return { canvas: c, extent: geometry.extentM, version: 0 };
@@ -416,6 +419,14 @@ function Navigator({ data }: { data: Dataset }) {
                   earth={analysis.windowResult.earthFraction[selectedCell]!}
                   night={analysis.windowResult.longestNightHours[selectedCell]!}
                   earthGap={analysis.windowResult.longestEarthGapHours[selectedCell]!}
+                />
+              )}
+              {analysis.series && analysis.series.cell === selectedCell && (
+                <CommsTimeline
+                  window={nav.window}
+                  relay={analysis.series.relay}
+                  earth={analysis.series.earth}
+                  timeMs={state.scrubMs}
                 />
               )}
               {selectedCell !== null && (
