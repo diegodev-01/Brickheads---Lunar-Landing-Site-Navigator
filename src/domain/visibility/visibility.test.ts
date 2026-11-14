@@ -79,7 +79,7 @@ describe("computeConditions", () => {
     subEarthLon: Array.from({ length: n }, () => 0),
     subEarthLat: Array.from({ length: n }, () => -5),
     earthDistanceKm: Array.from({ length: n }, () => 384_400),
-    provenance: "mock",
+    provenance: "simulated",
     source: "test",
   };
   const pole: Site = {
@@ -90,7 +90,7 @@ describe("computeConditions", () => {
     lat: -90,
     x: 0,
     y: 0,
-    provenance: "mock",
+    provenance: "simulated",
   };
 
   it("selects samples inside the window", () => {

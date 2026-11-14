@@ -24,15 +24,16 @@ export function Panel({
 }
 
 const PROVENANCE_STYLE: Record<Provenance, string> = {
-  real: "border-good/40 text-good",
+  measured: "border-good/40 text-good",
   derived: "border-earth/40 text-earth",
-  mock: "border-bad/50 text-bad",
+  simulated: "border-warn/60 text-warn",
 };
 
+// Icon + word, so the tag never relies on colour alone.
 const PROVENANCE_LABEL: Record<Provenance, string> = {
-  real: "NASA data",
-  derived: "derived from NASA data",
-  mock: "MOCK",
+  measured: "● Measured",
+  derived: "◐ Derived",
+  simulated: "◇ Simulated",
 };
 
 export function ProvenanceBadge({ value, title }: { value: Provenance; title?: string }) {

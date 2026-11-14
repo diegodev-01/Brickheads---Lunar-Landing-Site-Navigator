@@ -1,7 +1,9 @@
 /** Core domain types. Pure data: no framework types allowed in this layer. */
 
-/** Where a value comes from. Shown in the UI so mock data is never mistaken for real data. */
-export type Provenance = "real" | "derived" | "mock";
+import type { ProvenanceKind } from "./provenance";
+
+/** Where a value comes from (measured / derived / simulated). See provenance.ts for full tags. */
+export type Provenance = ProvenanceKind;
 
 export interface LonLat {
   /** East longitude, degrees, [0, 360). */

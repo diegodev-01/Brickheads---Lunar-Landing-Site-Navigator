@@ -37,7 +37,7 @@
      "#a50026"
     ]
    },
-   "provenance": "real",
+   "provenance": "measured",
    "source": "PGDA LDSM 20 m slope, averaged to 100 m (Barker et al. 2023)"
   },
   {
@@ -55,7 +55,7 @@
      "#fff3a0"
     ]
    },
-   "provenance": "real",
+   "provenance": "measured",
    "source": "LOLA AVGVISIB 60 m, PGDA product 69 (Mazarico et al. 2011)"
   },
   {
@@ -73,7 +73,7 @@
      "#c8f4ff"
     ]
    },
-   "provenance": "real",
+   "provenance": "measured",
    "source": "LOLA AVGVISIB_EARTH 60 m, PGDA product 69 (Mazarico et al. 2011)"
   },
   {
@@ -89,7 +89,7 @@
      "#4cc9f0"
     ]
    },
-   "provenance": "real",
+   "provenance": "measured",
    "source": "LOLA LPSR 60 m, PGDA product 69 (Mazarico et al. 2011)"
   }
  ],

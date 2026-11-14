@@ -31,7 +31,7 @@ const site = (id: string, over: Partial<Site> = {}): Site => ({
   roughnessDeg: 3,
   psrDistanceKm: 5,
   inPsr: false,
-  provenance: "mock",
+  provenance: "simulated",
   ...over,
 });
 

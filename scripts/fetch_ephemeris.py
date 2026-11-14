@@ -83,7 +83,7 @@ def fetch_series(start: str, stop: str, step: str) -> dict:
         - datetime.fromisoformat(times[0].replace("Z", "+00:00"))
     ).total_seconds() / 3600
     return {
-        "provenance": "real",
+        "provenance": "measured",
         "source": "JPL Horizons API (DE441), observer 500@399, target 301, quantities 14,15,20",
         "frame": "Moon MEAN_ME, east longitude, degrees",
         "generatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),

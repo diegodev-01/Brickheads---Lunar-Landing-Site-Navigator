@@ -1,9 +1,10 @@
 /** Reads the precomputed dataset committed under public/data (built by scripts/*.py). */
-import type { EphemerisSeries, Provenance, Site } from "@/domain/types";
+import { parseProvenanceKind } from "@/domain/provenance";
+import type { EphemerisSeries, Site } from "@/domain/types";
 import type { LunarDataProvider, RegionMeta } from "../provider";
 
 interface EphemerisFile {
-  provenance: Provenance;
+  provenance: string;
   source: string;
   start: string;
   stepHours: number;
@@ -23,13 +24,18 @@ async function getJson<T>(url: string): Promise<T> {
 export class StaticDatasetProvider implements LunarDataProvider {
   constructor(private readonly baseUrl = "/data") {}
 
-  getRegion(): Promise<RegionMeta> {
-    return getJson<RegionMeta>(`${this.baseUrl}/region.json`);
+  async getRegion(): Promise<RegionMeta> {
+    const region = await getJson<RegionMeta>(`${this.baseUrl}/region.json`);
+    // Data files may carry legacy labels ("real" / "mock"); normalise at the boundary.
+    return {
+      ...region,
+      layers: region.layers.map((l) => ({ ...l, provenance: parseProvenanceKind(l.provenance) })),
+    };
   }
 
   async getSites(): Promise<Site[]> {
     const file = await getJson<{ sites: Site[] }>(`${this.baseUrl}/sites.json`);
-    return file.sites;
+    return file.sites.map((s) => ({ ...s, provenance: parseProvenanceKind(s.provenance) }));
   }
 
   async getEphemeris(): Promise<EphemerisSeries> {
@@ -42,7 +48,7 @@ export class StaticDatasetProvider implements LunarDataProvider {
       subEarthLon: f.subEarthLon,
       subEarthLat: f.subEarthLat,
       earthDistanceKm: f.earthDistanceKm,
-      provenance: f.provenance,
+      provenance: parseProvenanceKind(f.provenance),
       source: f.source,
     };
   }

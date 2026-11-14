@@ -378,22 +378,22 @@ def main() -> None:
         {
             "id": "slope", "label": "Slope", "url": save_png(ramp(slope_disp, 0, 25, [(0, "#1a9850"), (0.32, "#d9ef8b"), (0.6, "#fdae61"), (1, "#a50026")]), "slope"),
             "legend": {"min": 0, "max": 25, "unit": "°", "stops": ["#1a9850", "#d9ef8b", "#fdae61", "#a50026"]},
-            "provenance": "real", "source": "PGDA LDSM 20 m slope, averaged to 100 m (Barker et al. 2023)",
+            "provenance": "measured", "source": "PGDA LDSM 20 m slope, averaged to 100 m (Barker et al. 2023)",
         },
         {
             "id": "sun", "label": "Sunlight (18.6-yr avg)", "url": save_png(ramp(sun_pct, 0, 100, [(0, "#0b0b2b"), (0.35, "#7a1f5c"), (0.7, "#f2711c"), (1, "#fff3a0")]), "sun"),
             "legend": {"min": 0, "max": 100, "unit": "%", "stops": ["#0b0b2b", "#7a1f5c", "#f2711c", "#fff3a0"]},
-            "provenance": "real", "source": "LOLA AVGVISIB 60 m, PGDA product 69 (Mazarico et al. 2011)",
+            "provenance": "measured", "source": "LOLA AVGVISIB 60 m, PGDA product 69 (Mazarico et al. 2011)",
         },
         {
             "id": "earth", "label": "Earth visibility (18.6-yr avg)", "url": save_png(ramp(earth_pct, 0, 100, [(0, "#0b0b2b"), (0.4, "#1d4e89"), (0.75, "#2fa4d9"), (1, "#c8f4ff")]), "earth"),
             "legend": {"min": 0, "max": 100, "unit": "%", "stops": ["#0b0b2b", "#1d4e89", "#2fa4d9", "#c8f4ff"]},
-            "provenance": "real", "source": "LOLA AVGVISIB_EARTH 60 m, PGDA product 69 (Mazarico et al. 2011)",
+            "provenance": "measured", "source": "LOLA AVGVISIB_EARTH 60 m, PGDA product 69 (Mazarico et al. 2011)",
         },
         {
             "id": "psr", "label": "Permanent shadow (PSR)", "url": save_png(ramp(np.where(psr_mask, 1.0, np.nan), 0, 1, [(0, "#4cc9f0"), (1, "#4cc9f0")], 0.75), "psr"),
             "legend": {"min": 0, "max": 1, "unit": "", "stops": ["#4cc9f0", "#4cc9f0"]},
-            "provenance": "real", "source": "LOLA LPSR 60 m, PGDA product 69 (Mazarico et al. 2011)",
+            "provenance": "measured", "source": "LOLA LPSR 60 m, PGDA product 69 (Mazarico et al. 2011)",
         },
     ]
 
