@@ -205,3 +205,29 @@ and SPICE for offline high-precision work.
   frames. Any offset between the realisations is small, but **we have not quantified it**. It's documented as a known limitation.
 - Earth "visible" means disc center above the horizon in our computation. PGDA uses any part of the disc, so expect small differences.
 - No sub-pixel terrain (boulders under ~20 m). Horizons are computed for a fixed 2 m observer height.
+
+## 4. Sensor-layer datasets (checked 2026-11-14)
+
+Each simulated "instrument" in the navigation panel uses a real dataset where one could be verified with a
+real request. Downloads go through Windows `curl.exe`: Python's TLS stack failed on `pds-geosciences.wustl.edu`
+from this machine (certificate chain), while schannel works. Built by `scripts/build_sensors.py`.
+
+| Instrument   | Dataset (PDS)                                                                                         | Status         | Use in app                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------ |
+| Radiometer   | Diviner Polar Resource Product, south: `lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/dlre_prp_south.tab` (605 MB ASCII, 2.88 M mesh triangles, LRO-L-DLRE-5-PRP-V2.0) | **verified**   | Annual mean/max T (measured), ice-stability depth (derived by the Diviner team) |
+| SAR          | Mini-RF global CPR mosaic, 128 ppd simple cylindrical: `lro/lro-l-mrflro-5-global-mosaic-v1/lromrf_1001/data/128ppd/global_cpr_128ppd_simp_0c.img` (4.2 GB; we range-read only the south cap, 64 MB) | **verified**   | CPR per cell (median, values > 3 dropped as noise); 87 % of cells covered       |
+| Spectrometer | LP GRS elemental abundance, 2° bins: `lunar/lp-l-grs-5-elem-abundance-v1/lp_9001/data/lpgrs_high1_elem_abundance_2deg.tab` (10 MB) | **verified**   | FeO, TiO₂ (weight fractions × 100). About 60 km pixels, so confidence is **low** |
+| Spectrometer | LEND (`lro/lro-l-lend-4_5-rdr-v1/` redirects to the EDR volume) and LP-NS (`lunar/lp-l-ns-3-rdr-v1/`, raw RDR only) hydrogen maps | **unverified** | Not used. A SIMULATED hydrogen stand-in is shown instead                        |
+| LiDAR        | Diviner rock abundance in polar projection: only cylindrical GDR L3 / GHRM products were found         | **unverified** | Not used. A SIMULATED boulder-hazard index (from LOLA roughness and slope) is shown |
+| LiDAR        | LOLA slope / roughness (section 2.3)                                                                  | **verified**   | Slope P95 (measured), roughness (derived)                                      |
+
+Notes:
+
+- **Diviner `ice_depth` codes.** The label says `0` means ice is stable at the surface and `-999` means
+  deeper than 2.8738 m. The file also contains `-1`, which the label does not document. It occurs only where
+  Tmax < 110 K, so we treat it as "stable at the surface". `-999` is stored as 3 m (meaning "deeper than 2.87 m").
+- **Mini-RF.** CPR in shadowed polar terrain has low signal-to-noise and a heavy tail (raw values up to ~50),
+  so we take per-cell medians and drop values > 3. The data were acquired in 2009–2010: Mini-RF has not
+  transmitted since Dec 2010.
+- **Row order.** PRP rows are in mesh order, not latitude order, so the whole table must be streamed (and
+  filtered on the fly). Mini-RF is row-major by latitude, so the polar cap is one contiguous byte range.
