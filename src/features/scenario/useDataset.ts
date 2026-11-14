@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { getDataProvider, type RegionMeta } from "@/data";
 import type { AnalysisGrid } from "@/domain/grid/grid";
+import type { SensorFields } from "@/domain/sensors/sensors";
 import type { EphemerisSeries, Site } from "@/domain/types";
 
 export interface Dataset {
@@ -11,6 +12,8 @@ export interface Dataset {
   ephemeris: EphemerisSeries;
   /** Per-cell analysis grid (also loaded independently by the analysis worker). */
   grid: AnalysisGrid;
+  /** Sensor source fields (real where verified, synthetic fallback otherwise). */
+  sensors: SensorFields;
 }
 
 export type DatasetState =
@@ -27,9 +30,10 @@ export function useDataset(): DatasetState {
       provider.getSites(),
       provider.getEphemeris(),
       provider.getAnalysisGrid(),
+      provider.getSensorFields(),
     ])
-      .then(([region, sites, ephemeris, grid]) => {
-        if (alive) setState({ status: "ready", data: { region, sites, ephemeris, grid } });
+      .then(([region, sites, ephemeris, grid, sensors]) => {
+        if (alive) setState({ status: "ready", data: { region, sites, ephemeris, grid, sensors } });
       })
       .catch((e: unknown) => {
         if (alive)

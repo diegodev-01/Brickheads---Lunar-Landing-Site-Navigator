@@ -65,19 +65,33 @@ function view(buf: ArrayBuffer, f: ManifestField, n: number): ArrayLike<number> 
   }
 }
 
-export function decodeGrid(manifest: GridManifest, buf: ArrayBuffer): AnalysisGrid {
-  if (manifest.version !== 1) throw new Error(`Unsupported grid version ${manifest.version}`);
-  const n = manifest.cols * manifest.rows;
-  const byId = new Map(manifest.fields.map((f) => [f.id, f]));
-  const size = (f: ManifestField) =>
-    f.byteOffset + (f.id === "horizon" ? n * manifest.horizon.bins : n * BYTES[f.dtype]);
-  if (manifest.fields.some((f) => size(f) > buf.byteLength))
-    throw new Error("grid.bin is truncated");
+/** Manifest shared by every per-cell binary (grid, sensors). */
+export interface FieldManifest {
+  version: number;
+  cols: number;
+  rows: number;
+  fields: ManifestField[];
+}
 
-  const fields = {} as Record<GridFieldId, ScalarField>;
-  for (const id of GRID_FIELD_IDS) {
+/**
+ * Decodes the scalar fields `ids` from a packed little-endian buffer into Float32 (NaN = nodata).
+ * `extraSize` gives the byte length of non-scalar fields (e.g. horizons) for the truncation check.
+ */
+export function decodeFields<Id extends string>(
+  manifest: FieldManifest,
+  buf: ArrayBuffer,
+  ids: readonly Id[],
+  extraSize: Record<string, number> = {},
+): Record<Id, ScalarField> {
+  if (manifest.version !== 1) throw new Error(`Unsupported data version ${manifest.version}`);
+  const n = manifest.cols * manifest.rows;
+  const size = (f: ManifestField) => f.byteOffset + (extraSize[f.id] ?? n * BYTES[f.dtype]);
+  if (manifest.fields.some((f) => size(f) > buf.byteLength)) throw new Error("binary is truncated");
+  const byId = new Map(manifest.fields.map((f) => [f.id, f]));
+  const fields = {} as Record<Id, ScalarField>;
+  for (const id of ids) {
     const f = byId.get(id);
-    if (!f) throw new Error(`grid.json is missing field "${id}"`);
+    if (!f) throw new Error(`manifest is missing field "${id}"`);
     const raw = view(buf, f, n);
     const data = new Float32Array(n);
     for (let i = 0; i < n; i++) {
@@ -86,6 +100,15 @@ export function decodeGrid(manifest: GridManifest, buf: ArrayBuffer): AnalysisGr
     }
     fields[id] = { id, unit: f.unit, data, provenance: toTag(f.provenance) };
   }
+  return fields;
+}
+
+export function decodeGrid(manifest: GridManifest, buf: ArrayBuffer): AnalysisGrid {
+  const n = manifest.cols * manifest.rows;
+  const fields: Record<GridFieldId, ScalarField> = decodeFields(manifest, buf, GRID_FIELD_IDS, {
+    horizon: n * manifest.horizon.bins,
+  });
+  const byId = new Map(manifest.fields.map((f) => [f.id, f]));
 
   const h = byId.get("horizon");
   if (!h) throw new Error('grid.json is missing field "horizon"');

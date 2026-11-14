@@ -77,3 +77,33 @@ export function paintGrid(
   ctx.putImageData(img, 0, 0);
   return canvas;
 }
+
+/** Pale → dark (yellow-orange-brown): low hazard to high hazard. Lightness-monotonic. */
+export const HAZARD_PALETTE: Palette = {
+  id: "hazard",
+  stops: ["#fff7bc", "#fec44f", "#fe9929", "#d95f0e", "#993404", "#4a1a04"],
+};
+
+/** Black → purple → orange → pale yellow (magma-like): cold to hot. */
+export const THERMAL_PALETTE: Palette = {
+  id: "thermal",
+  stops: ["#000004", "#3b0f70", "#8c2981", "#de4968", "#fe9f6d", "#fcfdbf"],
+};
+
+/** Dark → teal → pale cyan (mako-like): dry to icy. */
+export const ICE_PALETTE: Palette = {
+  id: "ice",
+  stops: ["#0b0405", "#382a54", "#395d9c", "#3496a9", "#60ceac", "#def5e5"],
+};
+
+/** Greys: radar backscatter ratio. */
+export const RADAR_PALETTE: Palette = {
+  id: "radar",
+  stops: ["#111111", "#444444", "#777777", "#aaaaaa", "#dddddd", "#ffffff"],
+};
+
+/** Viridis: composition. */
+export const MINERAL_PALETTE: Palette = {
+  id: "mineral",
+  stops: ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"],
+};

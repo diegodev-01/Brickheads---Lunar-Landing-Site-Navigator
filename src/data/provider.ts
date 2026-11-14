@@ -3,6 +3,7 @@
  * Moon Trek services…) without touching features/.
  */
 import type { AnalysisGrid } from "@/domain/grid/grid";
+import type { SensorFields } from "@/domain/sensors/sensors";
 import type { EphemerisSeries, Provenance, Site } from "@/domain/types";
 
 export interface RasterLayerMeta {
@@ -41,4 +42,9 @@ export interface LunarDataProvider {
   getEphemeris(): Promise<EphemerisSeries>;
   /** Per-cell analysis grid (terrain stats + horizon masks). Safe to call from a Web Worker. */
   getAnalysisGrid(): Promise<AnalysisGrid>;
+  /**
+   * Per-cell sensor source fields (Diviner, Mini-RF, LP GRS). Implementations fall back to clearly
+   * labelled synthetic fields when the real data cannot be loaded, so the demo always works offline.
+   */
+  getSensorFields(): Promise<SensorFields>;
 }

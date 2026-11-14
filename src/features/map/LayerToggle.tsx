@@ -18,12 +18,16 @@ export function LayerToggle({
   const active = layers.find((l) => l.id === activeId);
   const groups: { title: string; items: LayerEntry[] }[] = [
     { title: "For your dates", items: layers.filter((l) => l.kind === "grid") },
+    {
+      title: "Instruments (from real data where verified)",
+      items: layers.filter((l) => l.kind === "sensor"),
+    },
     { title: "Reference maps", items: layers.filter((l) => l.kind === "static") },
   ];
   return (
     <details
       open
-      className="w-52 rounded-md border border-line bg-panel/95 p-2 text-xs shadow-lg backdrop-blur sm:w-64"
+      className="max-h-[calc(100%-1rem)] w-52 overflow-y-auto rounded-md border border-line bg-panel/95 p-2 text-xs shadow-lg backdrop-blur sm:w-64"
     >
       <summary className="mb-1.5 cursor-pointer text-[11px] font-semibold tracking-[0.12em] text-muted uppercase">
         Map layer
@@ -56,7 +60,16 @@ export function LayerToggle({
                   onChange={() => onChange(l.id)}
                   className="accent-sun"
                 />
-                {l.label}
+                <span className="flex-1">{l.label}</span>
+                {l.kind === "sensor" && (
+                  <span
+                    className="text-[9px] text-muted"
+                    aria-label={`${l.provenance} data`}
+                    title={l.provenance}
+                  >
+                    {l.provenance === "measured" ? "●" : l.provenance === "derived" ? "◐" : "◇"}
+                  </span>
+                )}
               </label>
             ))}
           </div>

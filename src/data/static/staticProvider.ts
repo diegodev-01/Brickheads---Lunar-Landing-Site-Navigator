@@ -3,7 +3,9 @@ import type { AnalysisGrid } from "@/domain/grid/grid";
 import { parseProvenanceKind } from "@/domain/provenance";
 import type { EphemerisSeries, Site } from "@/domain/types";
 import type { LunarDataProvider, RegionMeta } from "../provider";
-import { decodeGrid, type GridManifest } from "./gridCodec";
+import { SENSOR_FIELD_IDS, type SensorFields } from "@/domain/sensors/sensors";
+import { syntheticSensorFields } from "../synthetic/syntheticSensors";
+import { decodeFields, decodeGrid, type FieldManifest, type GridManifest } from "./gridCodec";
 
 interface EphemerisFile {
   provenance: string;
@@ -24,7 +26,18 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 export class StaticDatasetProvider implements LunarDataProvider {
+  private gridPromise: Promise<AnalysisGrid> | null = null;
+
   constructor(private readonly baseUrl = "/data") {}
+
+  /** Fetches a (possibly .gz) binary and inflates it with the native DecompressionStream. */
+  private async getBinary(file: string, dir: string): Promise<ArrayBuffer> {
+    const res = await fetch(`${this.baseUrl}/${dir}/${file}`);
+    if (!res.ok || !res.body) throw new Error(`Failed to load ${file}: ${res.status}`);
+    return file.endsWith(".gz")
+      ? new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer()
+      : res.arrayBuffer();
+  }
 
   async getRegion(): Promise<RegionMeta> {
     const region = await getJson<RegionMeta>(`${this.baseUrl}/region.json`);
@@ -55,15 +68,24 @@ export class StaticDatasetProvider implements LunarDataProvider {
     };
   }
 
-  async getAnalysisGrid(): Promise<AnalysisGrid> {
-    const manifest = await getJson<GridManifest>(`${this.baseUrl}/grid/grid.json`);
-    const file = manifest.file ?? "grid.bin";
-    const res = await fetch(`${this.baseUrl}/grid/${file}`);
-    if (!res.ok || !res.body) throw new Error(`Failed to load ${file}: ${res.status}`);
-    // .gz is stored pre-compressed (smaller repo); inflate with the native DecompressionStream.
-    const bin = file.endsWith(".gz")
-      ? await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer()
-      : await res.arrayBuffer();
-    return decodeGrid(manifest, bin);
+  getAnalysisGrid(): Promise<AnalysisGrid> {
+    this.gridPromise ??= (async () => {
+      const manifest = await getJson<GridManifest>(`${this.baseUrl}/grid/grid.json`);
+      return decodeGrid(manifest, await this.getBinary(manifest.file ?? "grid.bin", "grid"));
+    })();
+    return this.gridPromise;
+  }
+
+  async getSensorFields(): Promise<SensorFields> {
+    try {
+      const manifest = await getJson<FieldManifest & { file: string }>(
+        `${this.baseUrl}/sensors/sensors.json`,
+      );
+      const buf = await this.getBinary(manifest.file, "sensors");
+      return decodeFields(manifest, buf, SENSOR_FIELD_IDS);
+    } catch (e) {
+      console.warn("Sensor data unavailable, using SIMULATED fallback:", e);
+      return syntheticSensorFields(await this.getAnalysisGrid());
+    }
   }
 }

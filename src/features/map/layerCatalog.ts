@@ -4,14 +4,26 @@
  */
 import type { RasterLayerMeta } from "@/data";
 import type { Provenance } from "@/domain/types";
-import { EARTH_PALETTE, SUNLIGHT_PALETTE, type Palette } from "./heatmap";
+import { SENSOR_LABEL, type SensorId, type SensorLayer } from "@/domain/sensors/sensors";
+import {
+  EARTH_PALETTE,
+  HAZARD_PALETTE,
+  ICE_PALETTE,
+  MINERAL_PALETTE,
+  RADAR_PALETTE,
+  SUNLIGHT_PALETTE,
+  THERMAL_PALETTE,
+  type Palette,
+} from "./heatmap";
 
 export type GridLayerId = "illumWindow" | "illumNow" | "earthWindow";
 
 export interface LayerEntry {
   id: string;
   label: string;
-  kind: "static" | "grid";
+  kind: "static" | "grid" | "sensor";
+  /** Instrument group for sensor layers. */
+  sensor?: SensorId;
   /** One sentence for a non-expert: what am I looking at? */
   help: string;
   legend: {
@@ -134,3 +146,144 @@ export function staticEntries(layers: RasterLayerMeta[]): LayerEntry[] {
 }
 
 export const isGridLayer = (id: string): id is GridLayerId => GRID_LAYERS.some((l) => l.id === id);
+
+/** How each sensor layer is drawn and what its colours mean. */
+export interface SensorStyle {
+  palette: Palette;
+  min: number;
+  max: number;
+  minLabel: string;
+  maxLabel: string;
+  lowMeaning: string;
+  highMeaning: string;
+}
+
+const SENSOR_STYLE: Record<string, SensorStyle> = {
+  "lidar.slope": {
+    palette: HAZARD_PALETTE,
+    min: 0,
+    max: 25,
+    minLabel: "0°",
+    maxLabel: "25°+",
+    lowMeaning: "Pale: flat",
+    highMeaning: "Dark: steep",
+  },
+  "lidar.roughness": {
+    palette: HAZARD_PALETTE,
+    min: 0,
+    max: 8,
+    minLabel: "0°",
+    maxLabel: "8°+",
+    lowMeaning: "Pale: smooth",
+    highMeaning: "Dark: bumpy",
+  },
+  "lidar.boulders": {
+    palette: HAZARD_PALETTE,
+    min: 0,
+    max: 1,
+    minLabel: "0",
+    maxLabel: "1",
+    lowMeaning: "Pale: few boulders",
+    highMeaning: "Dark: many boulders",
+  },
+  "sar.cpr": {
+    palette: RADAR_PALETTE,
+    min: 0,
+    max: 1.5,
+    minLabel: "0",
+    maxLabel: "1.5+",
+    lowMeaning: "Dark: smooth / dry",
+    highMeaning: "Bright: rough or icy",
+  },
+  "radiometer.tempMax": {
+    palette: THERMAL_PALETTE,
+    min: 30,
+    max: 330,
+    minLabel: "30 K",
+    maxLabel: "330 K",
+    lowMeaning: "Dark: always frozen",
+    highMeaning: "Bright: hot in sunlight",
+  },
+  "radiometer.tempAvg": {
+    palette: THERMAL_PALETTE,
+    min: 30,
+    max: 250,
+    minLabel: "30 K",
+    maxLabel: "250 K",
+    lowMeaning: "Dark: cold",
+    highMeaning: "Bright: warm",
+  },
+  "radiometer.tempNow": {
+    palette: THERMAL_PALETTE,
+    min: 30,
+    max: 330,
+    minLabel: "30 K",
+    maxLabel: "330 K",
+    lowMeaning: "Dark: cold now",
+    highMeaning: "Bright: hot now",
+  },
+  "spectrometer.feo": {
+    palette: MINERAL_PALETTE,
+    min: 3,
+    max: 7,
+    minLabel: "3 %",
+    maxLabel: "7 %",
+    lowMeaning: "Lower iron",
+    highMeaning: "Higher iron",
+  },
+  "spectrometer.tio2": {
+    palette: MINERAL_PALETTE,
+    min: 0,
+    max: 1,
+    minLabel: "0 %",
+    maxLabel: "1 %",
+    lowMeaning: "Lower titanium",
+    highMeaning: "Higher titanium",
+  },
+  "spectrometer.hydrogen": {
+    palette: ICE_PALETTE,
+    min: 100,
+    max: 250,
+    minLabel: "100 ppm",
+    maxLabel: "250 ppm",
+    lowMeaning: "Dark: dry",
+    highMeaning: "Bright: hydrogen-rich",
+  },
+  "derived.ice": {
+    palette: ICE_PALETTE,
+    min: 0,
+    max: 1,
+    minLabel: "0",
+    maxLabel: "1",
+    lowMeaning: "Dark: ice unlikely",
+    highMeaning: "Bright: ice likely",
+  },
+};
+
+export const sensorStyle = (id: string): SensorStyle | undefined => SENSOR_STYLE[id];
+
+/** Layer-switcher entries for the sensor layers (provenance read from each layer once). */
+export function sensorEntries(layers: SensorLayer[]): LayerEntry[] {
+  return layers.map((l) => {
+    const st = SENSOR_STYLE[l.id];
+    const prov = l.getLayer(undefined, 0, {}).provenance;
+    return {
+      id: l.id,
+      kind: "sensor" as const,
+      sensor: l.sensor,
+      label: l.label,
+      help: `${SENSOR_LABEL[l.sensor]}: ${l.description}`,
+      legend: st
+        ? {
+            stops: st.palette.stops,
+            minLabel: st.minLabel,
+            maxLabel: st.maxLabel,
+            lowMeaning: st.lowMeaning,
+            highMeaning: st.highMeaning,
+          }
+        : null,
+      provenance: prov.kind,
+      source: prov.verified ? prov.source : `${prov.source} (unverified)`,
+    };
+  });
+}

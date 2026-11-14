@@ -39,3 +39,23 @@ Newest last. Format: decision, why, how to revisit.
     meaning at the pole itself, but the map is fixed with 0°E up.
 14. **Mission Setup form remounts (React `key`) when the scenario changes elsewhere**, instead of syncing state
     in an effect.
+
+## Step 2: sensor layers (2026-11-14)
+
+15. **One contract for every instrument:** `getLayer(roi?, timeMs?, ctx?) → {grid, units, provenance, confidence}`
+    (`domain/sensors`). The source fields come from the data provider, which falls back to synthetic fields
+    tagged SIMULATED / low / unverified if `public/data/sensors` cannot be loaded, so the demo always works offline.
+16. **Real where verified, labelled models elsewhere.** Real: Diviner temperatures and ice stability, Mini-RF
+    CPR, LP GRS FeO/TiO₂, LOLA slope/roughness. Modelled (SIMULATED): boulder hazard, hydrogen ppm,
+    temperature at the scrubber time, ice probability index. The formulas are in `sensors.ts` and in
+    `scoring-model.md`.
+17. **Temperature "now"** = Tavg + (Tmax − Tavg) × sunlit fraction. This ignores thermal inertia and is shown
+    only for day/night contrast.
+18. **Ice probability** = 0.55 surface-stable fraction + 0.15 shallow-ice ramp (0.5 m → 0) + 0.20 PSR + 0.10
+    CPR ramp, renormalised over available inputs. Levels: High ≥ 0.5, Medium ≥ 0.25. Surface stability
+    dominates, so a sunlit rim with buried ice ~10 cm down reads "Low" for *surface* ice.
+19. **Diviner `-1` ice depth read as "surface-stable"** (undocumented code, only in Tmax < 110 K areas).
+20. **Mini-RF CPR per cell = median of pixels ≤ 3** (noise in shadow made the mean unusable, e.g. 6.9 at a
+    sunlit rim).
+21. **Sensor colour scales** are lightness-monotonic: hazard (pale → dark brown), thermal (magma), ice (mako),
+    radar (greys), composition (viridis). Each legend states what low and high mean.

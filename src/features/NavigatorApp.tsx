@@ -7,10 +7,18 @@ import { cellIndexAt, type Extent } from "@/domain/grid/grid";
 import { xyToLonLat } from "@/domain/geo/polarStereo";
 import type { MissionSetup } from "@/domain/mission/setup";
 import { WEIGHT_PRESETS } from "@/domain/scoring/config";
+import { createSensorLayers } from "@/domain/sensors/sensors";
 import type { LonLat } from "@/domain/types";
 import { useAnalysis } from "./analysis/useAnalysis";
 import { paintGrid, paletteLut } from "./map/heatmap";
-import { GRID_LAYERS, isGridLayer, staticEntries } from "./map/layerCatalog";
+import { SensorReadings } from "./insights/SensorReadings";
+import {
+  GRID_LAYERS,
+  isGridLayer,
+  sensorEntries,
+  sensorStyle,
+  staticEntries,
+} from "./map/layerCatalog";
 import { LayerToggle } from "./map/LayerToggle";
 import { useDataset, type Dataset } from "./scenario/useDataset";
 import { useNavigator } from "./scenario/useNavigator";
@@ -78,8 +86,29 @@ function Navigator({ data }: { data: Dataset }) {
     if (analysis.status === "ready") requestSeries(selectedCell);
   }, [analysis.status, selectedCell, nav.window, requestSeries]);
 
-  // Heatmap canvas for the active computed layer.
+  const sensorLayers = useMemo(
+    () => createSensorLayers(data.grid, data.sensors),
+    [data.grid, data.sensors],
+  );
+  const activeSensor = sensorLayers.find((l) => l.id === state.layerId) ?? null;
+  const sunNow = analysis.snapshot?.sun;
+
+  // Heatmap canvas for the active computed layer (illumination or sensor).
   const gridOverlay = useMemo(() => {
+    if (activeSensor) {
+      const st = sensorStyle(activeSensor.id);
+      if (!st) return null;
+      const r = activeSensor.getLayer(undefined, state.scrubMs, { sunNow });
+      const canvas = paintGrid(
+        document.createElement("canvas"),
+        geometry,
+        r.grid,
+        st.min,
+        st.max,
+        paletteLut(st.palette),
+      );
+      return { canvas, extent: geometry.extentM, version: 0 };
+    }
     if (!isGridLayer(state.layerId)) return null;
     const values =
       state.layerId === "illumNow"
@@ -97,7 +126,16 @@ function Navigator({ data }: { data: Dataset }) {
       LUTS[state.layerId]!,
     );
     return { canvas, extent: geometry.extentM, version: 0 };
-  }, [state.layerId, analysis.snapshot, analysis.windowResult, geometry]);
+    // scrubMs/sunNow matter only for time-dependent sensor layers.
+  }, [
+    state.layerId,
+    state.scrubMs,
+    sunNow,
+    activeSensor,
+    analysis.snapshot,
+    analysis.windowResult,
+    geometry,
+  ]);
 
   const roi: Extent | null = useMemo(() => {
     if (!selected) return null;
@@ -108,8 +146,8 @@ function Navigator({ data }: { data: Dataset }) {
   }, [selected, state.roiHalfKm, geometry]);
 
   const layers = useMemo(
-    () => [...GRID_LAYERS, ...staticEntries(data.region.layers)],
-    [data.region.layers],
+    () => [...GRID_LAYERS, ...sensorEntries(sensorLayers), ...staticEntries(data.region.layers)],
+    [data.region.layers, sensorLayers],
   );
 
   const setupValues: SetupValues = useMemo(
@@ -257,6 +295,14 @@ function Navigator({ data }: { data: Dataset }) {
               earth={analysis.windowResult.earthFraction[selectedCell]!}
               night={analysis.windowResult.longestNightHours[selectedCell]!}
               earthGap={analysis.windowResult.longestEarthGapHours[selectedCell]!}
+            />
+          )}
+          {selected && selectedCell !== null && (
+            <SensorReadings
+              layers={sensorLayers}
+              cell={selectedCell}
+              timeMs={state.scrubMs}
+              ctx={{ sunNow }}
             />
           )}
           {selected ? (
