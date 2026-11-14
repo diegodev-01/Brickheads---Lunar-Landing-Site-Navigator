@@ -2,6 +2,7 @@
  * The only contract the UI depends on. Swap implementations (static files, live Horizons proxy,
  * Moon Trek services…) without touching features/.
  */
+import type { AnalysisGrid } from "@/domain/grid/grid";
 import type { EphemerisSeries, Provenance, Site } from "@/domain/types";
 
 export interface RasterLayerMeta {
@@ -38,4 +39,6 @@ export interface LunarDataProvider {
   getRegion(): Promise<RegionMeta>;
   getSites(): Promise<Site[]>;
   getEphemeris(): Promise<EphemerisSeries>;
+  /** Per-cell analysis grid (terrain stats + horizon masks). Safe to call from a Web Worker. */
+  getAnalysisGrid(): Promise<AnalysisGrid>;
 }

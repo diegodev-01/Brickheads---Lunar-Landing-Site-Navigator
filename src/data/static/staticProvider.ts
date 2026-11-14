@@ -1,7 +1,9 @@
 /** Reads the precomputed dataset committed under public/data (built by scripts/*.py). */
+import type { AnalysisGrid } from "@/domain/grid/grid";
 import { parseProvenanceKind } from "@/domain/provenance";
 import type { EphemerisSeries, Site } from "@/domain/types";
 import type { LunarDataProvider, RegionMeta } from "../provider";
+import { decodeGrid, type GridManifest } from "./gridCodec";
 
 interface EphemerisFile {
   provenance: string;
@@ -51,5 +53,17 @@ export class StaticDatasetProvider implements LunarDataProvider {
       provenance: parseProvenanceKind(f.provenance),
       source: f.source,
     };
+  }
+
+  async getAnalysisGrid(): Promise<AnalysisGrid> {
+    const manifest = await getJson<GridManifest>(`${this.baseUrl}/grid/grid.json`);
+    const file = manifest.file ?? "grid.bin";
+    const res = await fetch(`${this.baseUrl}/grid/${file}`);
+    if (!res.ok || !res.body) throw new Error(`Failed to load ${file}: ${res.status}`);
+    // .gz is stored pre-compressed (smaller repo); inflate with the native DecompressionStream.
+    const bin = file.endsWith(".gz")
+      ? await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer()
+      : await res.arrayBuffer();
+    return decodeGrid(manifest, bin);
   }
 }
