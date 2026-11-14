@@ -74,6 +74,9 @@ export interface CellFrames {
   cells: Int32Array;
   /** 9 floats per cell: e(3), n(3), u(3). */
   basis: Float64Array;
+  /** Lowest / highest terrain horizon of each cell over all azimuths (deg), for early exits. */
+  minHorizon: Float32Array;
+  maxHorizon: Float32Array;
 }
 
 export function buildCellFrames(grid: AnalysisGrid, cells: Int32Array): CellFrames {
@@ -93,7 +96,31 @@ export function buildCellFrames(grid: AnalysisGrid, cells: Int32Array): CellFram
     basis[o + 7] = Math.cos(la) * Math.sin(lo);
     basis[o + 8] = Math.sin(la);
   }
-  return { cells, basis };
+  const h = grid.horizon;
+  const minHorizon = new Float32Array(cells.length);
+  const maxHorizon = new Float32Array(cells.length);
+  for (let k = 0; k < cells.length; k++) {
+    let lo = 255;
+    let hi = 0;
+    const base = cells[k]! * h.bins;
+    for (let b = 0; b < h.bins; b++) {
+      const q = h.data[base + b]!;
+      if (q < lo) lo = q;
+      if (q > hi) hi = q;
+    }
+    minHorizon[k] = h.offset + h.scale * lo;
+    maxHorizon[k] = h.offset + h.scale * hi;
+  }
+  return { cells, basis, minHorizon, maxHorizon };
+}
+
+/**
+ * asin(x) in degrees for the small angles that matter here: x + x³/6 is within 0.0003° of asin
+ * below 10° (the Sun never exceeds ~1.6° and Earth ~8° at the pole); exact asin is used above.
+ */
+function asinDeg(x: number): number {
+  if (x > 0.17 || x < -0.17) return Math.asin(x > 1 ? 1 : x < -1 ? -1 : x) * RAD2DEG;
+  return (x + (x * x * x) / 6 + (3 * x * x * x * x * x) / 40) * RAD2DEG;
 }
 
 const RAD2DEG = 180 / Math.PI;
@@ -117,7 +144,7 @@ export function visibilitySnapshot(
   const finite = Number.isFinite(dir.distanceKm);
   const d = finite ? dir.distanceKm * 1000 : 1;
   const r = MOON_RADIUS_M;
-  const { basis, cells } = frames;
+  const { basis, cells, minHorizon, maxHorizon } = frames;
   const h = grid.horizon;
   for (let k = 0; k < cells.length; k++) {
     const o = k * 9;
@@ -128,21 +155,24 @@ export function visibilitySnapshot(
       vx = d * sx - r * basis[o + 6]!;
       vy = d * sy - r * basis[o + 7]!;
       vz = d * sz - r * basis[o + 8]!;
-      const norm = Math.hypot(vx, vy, vz);
-      vx /= norm;
-      vy /= norm;
-      vz /= norm;
+      const inv = 1 / Math.sqrt(vx * vx + vy * vy + vz * vz); // Math.hypot is slow in V8
+      vx *= inv;
+      vy *= inv;
+      vz *= inv;
     }
-    const ve = vx * basis[o]! + vy * basis[o + 1]! + vz * basis[o + 2]!;
-    const vn = vx * basis[o + 3]! + vy * basis[o + 4]! + vz * basis[o + 5]!;
     const vu = vx * basis[o + 6]! + vy * basis[o + 7]! + vz * basis[o + 8]!;
-    const el = Math.asin(vu > 1 ? 1 : vu < -1 ? -1 : vu) * RAD2DEG;
-    // Fast reject: below the lowest representable horizon minus the disc radius is never visible,
-    // and the Sun never gets high enough at the pole to clear the max horizon by much.
-    if (el + radiusDeg < h.offset) {
+    const el = asinDeg(vu);
+    // Early exits (no azimuth needed): fully below the cell's lowest horizon, or fully above its highest.
+    if (el + radiusDeg <= minHorizon[k]!) {
       out[k] = 0;
       continue;
     }
+    if (el - radiusDeg >= maxHorizon[k]!) {
+      out[k] = 1;
+      continue;
+    }
+    const ve = vx * basis[o]! + vy * basis[o + 1]! + vz * basis[o + 2]!;
+    const vn = vx * basis[o + 3]! + vy * basis[o + 4]! + vz * basis[o + 5]!;
     const az = Math.atan2(ve, vn) * RAD2DEG;
     out[k] = discFraction(el, cellHorizonAt(h, cells[k]!, az), radiusDeg);
   }
@@ -161,15 +191,26 @@ export interface WindowVisibility {
   stepHours: number;
 }
 
-/** Time-averaged visibility per cell over a window, sampled every `stepHours`. */
-export function visibilityOverWindow(
+/**
+ * Incremental window accumulator: advance a few samples at a time so a worker can yield between
+ * slices (serve scrubber frames, drop superseded requests) instead of blocking for seconds.
+ */
+export interface WindowAccumulator {
+  readonly samples: number;
+  readonly done: number;
+  /** Process up to `n` more samples; returns true when finished. */
+  advance(n: number): boolean;
+  result(): WindowVisibility;
+}
+
+export function createWindowAccumulator(
   grid: AnalysisGrid,
   frames: CellFrames,
   eph: EphemerisSeries,
   win: TimeWindow,
   body: Body,
   stepHours = 1,
-): WindowVisibility {
+): WindowAccumulator {
   const radius = body === "sun" ? SUN_RADIUS_DEG : EARTH_RADIUS_DEG;
   const n = frames.cells.length;
   const stepMs = stepHours * 3_600_000;
@@ -179,33 +220,57 @@ export function visibilityOverWindow(
   const longest = new Float32Array(n);
   const atStart = new Float32Array(n);
   const frame = new Float32Array(n);
-  for (let s = 0; s < samples; s++) {
-    visibilitySnapshot(
-      grid,
-      frames,
-      bodyDirection(eph, body, win.startMs + s * stepMs),
-      radius,
-      frame,
-    );
-    if (s === 0) atStart.set(frame);
-    for (let k = 0; k < n; k++) {
-      const f = frame[k]!;
-      sum[k]! += f;
-      if (f < 0.5) {
-        run[k]! += stepHours;
-        if (run[k]! > longest[k]!) longest[k] = run[k]!;
-      } else run[k] = 0;
-    }
-  }
-  for (let k = 0; k < n; k++) sum[k]! /= samples;
+  let done = 0;
   return {
-    cells: frames.cells,
-    fraction: sum,
-    longestGapHours: longest,
-    atStart,
     samples,
-    stepHours,
+    get done() {
+      return done;
+    },
+    advance(count: number) {
+      const stop = Math.min(samples, done + count);
+      for (; done < stop; done++) {
+        const dir = bodyDirection(eph, body, win.startMs + done * stepMs);
+        visibilitySnapshot(grid, frames, dir, radius, frame);
+        if (done === 0) atStart.set(frame);
+        for (let k = 0; k < n; k++) {
+          const f = frame[k]!;
+          sum[k]! += f;
+          if (f < 0.5) {
+            run[k]! += stepHours;
+            if (run[k]! > longest[k]!) longest[k] = run[k]!;
+          } else run[k] = 0;
+        }
+      }
+      return done >= samples;
+    },
+    result() {
+      const fraction = new Float32Array(n);
+      const d = Math.max(1, done);
+      for (let k = 0; k < n; k++) fraction[k] = sum[k]! / d;
+      return {
+        cells: frames.cells,
+        fraction,
+        longestGapHours: longest.slice(),
+        atStart: atStart.slice(),
+        samples: done,
+        stepHours,
+      };
+    },
   };
+}
+
+/** Time-averaged visibility per cell over a window, sampled every `stepHours` (synchronous). */
+export function visibilityOverWindow(
+  grid: AnalysisGrid,
+  frames: CellFrames,
+  eph: EphemerisSeries,
+  win: TimeWindow,
+  body: Body,
+  stepHours = 1,
+): WindowVisibility {
+  const acc = createWindowAccumulator(grid, frames, eph, win, body, stepHours);
+  acc.advance(acc.samples);
+  return acc.result();
 }
 
 export interface PointSeries {

@@ -20,8 +20,13 @@ export const LUNAR_DAY_DAYS = 29.53;
 export interface NavigatorState {
   weights: Weights;
   presetId: string | null;
+  /** Landing time = start of the analysis window (UTC ms). */
   windowStartMs: number;
   windowDays: number;
+  /** Time shown by the scrubber, inside the window. */
+  scrubMs: number;
+  /** Half-width of the region of interest around the selected point, km. */
+  roiHalfKm: number;
   selectedId: string | null;
   layerId: string;
   customSites: Site[];
@@ -31,6 +36,16 @@ type Action =
   | { type: "weight"; id: FactorId; value: number }
   | { type: "preset"; id: string }
   | { type: "windowStart"; ms: number }
+  | { type: "scrub"; ms: number }
+  | {
+      type: "applySetup";
+      startMs: number;
+      days: number;
+      roiHalfKm: number;
+      presetId: string;
+      /** A new custom site to add and select (target typed by the user), if any. */
+      site?: Site;
+    }
   | { type: "windowDays"; days: number }
   | { type: "select"; id: string | null }
   | { type: "layer"; id: string }
@@ -46,9 +61,23 @@ function reducer(s: NavigatorState, a: Action): NavigatorState {
       return p ? { ...s, weights: { ...p.weights }, presetId: p.id } : s;
     }
     case "windowStart":
-      return { ...s, windowStartMs: a.ms };
+      return { ...s, windowStartMs: a.ms, scrubMs: a.ms };
     case "windowDays":
-      return { ...s, windowDays: a.days };
+      return { ...s, windowDays: a.days, scrubMs: s.windowStartMs };
+    case "scrub":
+      return { ...s, scrubMs: a.ms };
+    case "applySetup": {
+      const p = WEIGHT_PRESETS.find((x) => x.id === a.presetId);
+      return {
+        ...s,
+        windowStartMs: a.startMs,
+        scrubMs: a.startMs,
+        windowDays: a.days,
+        roiHalfKm: a.roiHalfKm,
+        ...(p ? { weights: { ...p.weights }, presetId: p.id } : {}),
+        ...(a.site ? { customSites: [...s.customSites, a.site], selectedId: a.site.id } : {}),
+      };
+    }
     case "select":
       return { ...s, selectedId: a.id };
     case "layer":
@@ -100,9 +129,11 @@ export function useNavigator(data: Dataset): NavigatorView {
     weights: { ...DEFAULT_WEIGHTS },
     presetId: WEIGHT_PRESETS[0]!.id,
     windowStartMs: defaultStart(coverage),
-    windowDays: LUNAR_DAY_DAYS,
+    scrubMs: defaultStart(coverage),
+    windowDays: 14,
+    roiHalfKm: 10,
     selectedId: null,
-    layerId: "sun",
+    layerId: "illumWindow",
     customSites: [],
   }));
 

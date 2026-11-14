@@ -5,6 +5,7 @@ import { cellIndexAt, cellLonLat, cellsInExtent } from "../grid/grid";
 import {
   bodyDirection,
   buildCellFrames,
+  createWindowAccumulator,
   discFraction,
   pointSeries,
   SUN_RADIUS_DEG,
@@ -113,5 +114,21 @@ describe("visibilityOverWindow", () => {
     expect(w.fraction[0]).toBeCloseTo(14 / 24, 5);
     expect(w.longestGapHours[0]).toBe(10);
     expect(w.atStart[0]).toBe(1);
+  });
+});
+
+describe("createWindowAccumulator", () => {
+  it("gives the same result in slices as in one go", () => {
+    const grid = syntheticGrid({ cols: 3, rows: 3, cellSizeM: 1000, horizonDeg: (i) => i * 0.3 });
+    const eph = syntheticEphemeris({ hours: 40, sunLat: (i) => -1.5 + 0.08 * i });
+    const frames = buildCellFrames(grid, cellsInExtent(grid.geometry));
+    const win = { startMs: eph.startMs, endMs: eph.startMs + 39 * 3_600_000 };
+    const whole = visibilityOverWindow(grid, frames, eph, win, "sun");
+    const acc = createWindowAccumulator(grid, frames, eph, win, "sun");
+    let guard = 0;
+    while (!acc.advance(7) && guard++ < 100);
+    const sliced = acc.result();
+    expect(Array.from(sliced.fraction)).toEqual(Array.from(whole.fraction));
+    expect(Array.from(sliced.longestGapHours)).toEqual(Array.from(whole.longestGapHours));
   });
 });

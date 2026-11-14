@@ -155,3 +155,26 @@ models, Diviner, PWA/offline, i18n, URL-shareable scenarios, auth, database, and
 - **Custom sites:** click empty ground or enter lat/lon. They get a smooth-sphere horizon, and terrain factors are reported as
   "not scored" (weights renormalise), so they stay comparable but are clearly labelled.
 - **Tooling:** Vitest 4.0.18 (Vitest 5 needs Node 22). ESLint `no-restricted-imports` enforces the layer rules in section 2.
+
+## 12. Navigation panel (pivot, in progress)
+
+See [pivot-plan.md](pivot-plan.md) and [decisions.md](decisions.md). New since the MVP:
+
+- **Provenance** (`domain/provenance.ts`): every value is `measured | derived | simulated` with a confidence level and
+  a `verified` flag. Computations are never "measured", and any simulated input makes the result simulated.
+- **Mission Setup** (`domain/mission/`): UTC time (ISO or Julian Day), target, square ROI, window and preset,
+  validated against the ephemeris coverage and the mapped region, with plain-language errors.
+- **Analysis grid** (`scripts/build_grid.py` → `public/data/grid/`): 500 m cells (200 × 200) with LOLA slope
+  mean/P95, roughness, PSR fraction/distance, long-term Sun/Earth, elevation, and a **90-bin terrain horizon per
+  cell**, ray-marched offline over the 40 m / 320 m LOLA DEM. It ships as delta-encoded `grid.bin.gz` (1.95 MB)
+  and is inflated in the browser with the native `DecompressionStream`. Validated against PGDA's 18.6-year maps:
+  Sun r = 0.984 (mean |Δ| 1.4 points), Earth r = 0.971 (5.4 points).
+- **Illumination** (`domain/illumination/`): Sun/Earth directions interpolated from Horizons, horizon lookup per
+  cell, a linear partial-disc model, window averages, longest night / Earth blackout, and point time series. Pure
+  TS and unit-tested.
+- **Analysis worker** (`workers/analysis.worker.ts` + `features/analysis/useAnalysis.ts`): computes all 40k
+  cells off the main thread. Window jobs post a coarse 6 h preview first, then refine in slices and yield
+  between them, so scrubber snapshots (~2 ms each) stay interactive and superseded jobs are dropped.
+- **UI layout**: Mission setup rail (left), map hero with layer switcher (plain-language legends,
+  CVD-safe sequential palettes), Insights (right), and a time scrubber (bottom) with play/pause, speed,
+  a Sun-direction compass and the selected point's illuminated % over time.
