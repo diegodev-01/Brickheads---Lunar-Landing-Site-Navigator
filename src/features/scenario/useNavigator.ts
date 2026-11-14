@@ -59,6 +59,8 @@ export type Action =
   | { type: "select"; id: string | null }
   | { type: "layer"; id: string }
   | { type: "addCustom"; site: Site }
+  /** Move the single "aimed" landing point (replaces the previous one instead of piling up). */
+  | { type: "aim"; site: Site }
   | { type: "removeCustom"; id: string }
   | { type: "loadScenario"; state: Partial<NavigatorState> };
 
@@ -102,6 +104,12 @@ export function reducer(s: NavigatorState, a: Action): NavigatorState {
       return { ...s, layerId: a.id };
     case "addCustom":
       return { ...s, customSites: [...s.customSites, a.site], selectedId: a.site.id };
+    case "aim":
+      return {
+        ...s,
+        customSites: [...s.customSites.filter((c) => c.id !== a.site.id), a.site],
+        selectedId: a.site.id,
+      };
     case "removeCustom":
       return {
         ...s,
@@ -153,11 +161,12 @@ export interface NavigatorView {
   makeCustomSite: (p: LonLat, label?: string) => Site;
 }
 
-export function useNavigator(data: Dataset): NavigatorView {
+export function useNavigator(data: Dataset, initial: Partial<NavigatorState> = {}): NavigatorView {
   const coverage = useMemo(() => ephemerisCoverage(data.ephemeris), [data.ephemeris]);
-  const [state, dispatch] = useReducer(reducer, undefined, () =>
-    initialState(coverage.startMs, defaultStart(coverage)),
-  );
+  const [state, dispatch] = useReducer(reducer, undefined, () => ({
+    ...initialState(coverage.startMs, defaultStart(coverage)),
+    ...initial,
+  }));
 
   const sites = useMemo(
     () => [...data.sites, ...state.customSites],

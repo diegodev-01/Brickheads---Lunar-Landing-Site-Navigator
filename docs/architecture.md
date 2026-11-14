@@ -178,3 +178,19 @@ See [pivot-plan.md](pivot-plan.md) and [decisions.md](decisions.md). New since t
 - **UI layout**: Mission setup rail (left), map hero with layer switcher (plain-language legends,
   CVD-safe sequential palettes), Insights (right), and a time scrubber (bottom) with play/pause, speed,
   a Sun-direction compass and the selected point's illuminated % over time.
+
+## 13. Lunar planisphere and Simple mode
+
+- **Planisphere** (`features/planisphere/`): the whole Moon unrolled into a 360° × 180° equirectangular map
+  (`public/data/layers/moon-planisphere.jpg`, NASA SVS CGI Moon Kit, LROC colour mosaic, centred on lon 0°).
+  It shades the night side and marks the sub-solar and sub-Earth points at the landing time.
+- **Landing point from yaw and pitch** (`domain/orbit/aim.ts`, unit-tested): yaw = east longitude [0, 360),
+  pitch = latitude [-90, 90]; direction from the Moon's centre = (cos p·cos y, cos p·sin y, sin p). Clicking or
+  dragging the planisphere, the south-pole close-up and the Yaw/Pitch sliders all drive the same `Aim`.
+  The aimed point is one site (`id: "AIM"`) that is replaced, not appended, on every move.
+- **Coverage**: the detailed grid only covers the south-pole region. Inside it the point gets the full two-stage
+  evaluation. Outside it, only Sun and Earth visibility (smooth sphere, real ephemeris) are rated, and ground
+  safety and ice are reported as "No data", never guessed (`plainGlobalSummary`).
+- **Simple mode** (default; `features/simple/`, `domain/scoring/plainSummary.ts`): three everyday questions on the
+  left, and on the right one verdict, four rated rows (safe ground, sunlight, contact with Earth, water ice) and
+  the best 3 spots. Expert mode keeps every previous panel, layer and number.
