@@ -1,0 +1,227 @@
+{
+ "version": 1,
+ "cellSizeM": 500.0,
+ "cols": 200,
+ "rows": 200,
+ "extentM": [
+  -50000,
+  -50000,
+  50000,
+  50000
+ ],
+ "rowOrder": "top-down (row 0 = max y)",
+ "horizon": {
+  "bins": 90,
+  "binDeg": 4.0,
+  "observerHeightM": 2.0,
+  "rayKm": 180.0,
+  "encoding": "el_deg = offset + scale * q; bin k centred on azimuth k*binDeg; max-pooled over +/-2 deg",
+  "storage": "delta-az-u8: per cell, q[0] then q[k]-q[k-1] mod 256"
+ },
+ "file": "grid.bin.gz",
+ "fields": [
+  {
+   "id": "elevation",
+   "dtype": "i16",
+   "byteOffset": 0,
+   "scale": 1.0,
+   "offset": 0.0,
+   "nodata": -32768,
+   "unit": "m",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "high",
+    "source": "Mean of PGDA LDEM 40 m in the cell (Barker et al. 2023)",
+    "verified": true
+   }
+  },
+  {
+   "id": "slopeMean",
+   "dtype": "u8",
+   "byteOffset": 80000,
+   "scale": 0.2,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "deg",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "high",
+    "source": "PGDA LDSM 20 m slope map, averaged to 40 m (Barker et al. 2023)",
+    "verified": true
+   }
+  },
+  {
+   "id": "slopeP95",
+   "dtype": "u8",
+   "byteOffset": 120000,
+   "scale": 0.2,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "deg",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "high",
+    "source": "95th percentile of PGDA LDSM 20 m slope map, averaged to 40 m (Barker et al. 2023)",
+    "verified": true
+   }
+  },
+  {
+   "id": "roughness",
+   "dtype": "u8",
+   "byteOffset": 160000,
+   "scale": 0.1,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "deg",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "medium",
+    "source": "Std-dev of 40 m slope within the cell (roughness proxy)",
+    "verified": true
+   }
+  },
+  {
+   "id": "safeRadius5",
+   "dtype": "u8",
+   "byteOffset": 200000,
+   "scale": 10.0,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "m",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "high",
+    "source": "Largest circle in the cell with all 40 m slopes <= 5 deg (distance transform of PGDA LDSM 20 m slope map, averaged to 40 m (Barker et al. 2023))",
+    "verified": true
+   }
+  },
+  {
+   "id": "safeRadius8",
+   "dtype": "u8",
+   "byteOffset": 240000,
+   "scale": 10.0,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "m",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "high",
+    "source": "Largest circle in the cell with all 40 m slopes <= 8 deg (distance transform of PGDA LDSM 20 m slope map, averaged to 40 m (Barker et al. 2023))",
+    "verified": true
+   }
+  },
+  {
+   "id": "safeRadius10",
+   "dtype": "u8",
+   "byteOffset": 280000,
+   "scale": 10.0,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "m",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "high",
+    "source": "Largest circle in the cell with all 40 m slopes <= 10 deg (distance transform of PGDA LDSM 20 m slope map, averaged to 40 m (Barker et al. 2023))",
+    "verified": true
+   }
+  },
+  {
+   "id": "safeRadius15",
+   "dtype": "u8",
+   "byteOffset": 320000,
+   "scale": 10.0,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "m",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "high",
+    "source": "Largest circle in the cell with all 40 m slopes <= 15 deg (distance transform of PGDA LDSM 20 m slope map, averaged to 40 m (Barker et al. 2023))",
+    "verified": true
+   }
+  },
+  {
+   "id": "psrFraction",
+   "dtype": "u8",
+   "byteOffset": 360000,
+   "scale": 0.004,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "fraction",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "high",
+    "source": "LOLA LPSR 60 m, PGDA product 69 (Mazarico et al. 2011)",
+    "verified": true
+   }
+  },
+  {
+   "id": "psrDistance",
+   "dtype": "u16",
+   "byteOffset": 400000,
+   "scale": 0.01,
+   "offset": 0.0,
+   "nodata": 65535,
+   "unit": "km",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "high",
+    "source": "Distance to nearest LPSR pixel (100 m)",
+    "verified": true
+   }
+  },
+  {
+   "id": "sunLongTerm",
+   "dtype": "u8",
+   "byteOffset": 480000,
+   "scale": 0.5,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "%",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "high",
+    "source": "LOLA AVGVISIB 60 m, PGDA product 69 (Mazarico et al. 2011)",
+    "verified": true
+   }
+  },
+  {
+   "id": "earthLongTerm",
+   "dtype": "u8",
+   "byteOffset": 520000,
+   "scale": 0.5,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "%",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "high",
+    "source": "LOLA AVGVISIB_EARTH 60 m, PGDA product 69 (Mazarico et al. 2011)",
+    "verified": true
+   }
+  },
+  {
+   "id": "horizon",
+   "dtype": "u8",
+   "byteOffset": 560000,
+   "scale": 0.1,
+   "offset": -4.0,
+   "nodata": null,
+   "unit": "deg",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "medium",
+    "verified": true,
+    "source": "Ray-cast from PGDA LDEM 40 m / 320 m (Barker et al. 2023) by scripts/build_grid.py"
+   }
+  }
+ ],
+ "validation": {
+  "method": "Mean visibility over the bundled ephemeris (every 6 h) with these masks vs PGDA 18.6-yr maps",
+  "sunR": 0.984,
+  "sunMeanAbsDiffPct": 1.4,
+  "earthR": 0.971,
+  "earthMeanAbsDiffPct": 5.4
+ },
+ "generatedAt": "2026-11-14T22:48:13Z"
+}

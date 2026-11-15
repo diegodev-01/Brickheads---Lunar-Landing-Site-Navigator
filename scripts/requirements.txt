@@ -1,0 +1,5 @@
+# Offline preprocessing only (not needed for `npm run dev`).
+rasterio>=1.4   # windowed reads of PGDA Cloud-Optimized GeoTIFFs over HTTP (bundles GDAL)
+numpy>=2.0
+scipy>=1.13     # bilinear sampling for horizon rays, distance transform for PSR distance
+pillow>=10      # PNG export of map layers

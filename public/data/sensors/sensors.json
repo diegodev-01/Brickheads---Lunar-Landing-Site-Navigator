@@ -1,0 +1,130 @@
+{
+ "version": 1,
+ "cellSizeM": 500.0,
+ "cols": 200,
+ "rows": 200,
+ "extentM": [
+  -50000,
+  -50000,
+  50000,
+  50000
+ ],
+ "file": "sensors.bin.gz",
+ "fields": [
+  {
+   "id": "tempAvg",
+   "dtype": "u16",
+   "byteOffset": 0,
+   "scale": 0.01,
+   "offset": 0.0,
+   "nodata": 65535,
+   "unit": "K",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "high",
+    "source": "Diviner Polar Resource Product, south (Paige et al. 2010; LRO-L-DLRE-5-PRP-V2.0), binned to 500 m \u2014 annual mean bolometric T",
+    "verified": true
+   }
+  },
+  {
+   "id": "tempMax",
+   "dtype": "u16",
+   "byteOffset": 80000,
+   "scale": 0.01,
+   "offset": 0.0,
+   "nodata": 65535,
+   "unit": "K",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "high",
+    "source": "Diviner Polar Resource Product, south (Paige et al. 2010; LRO-L-DLRE-5-PRP-V2.0), binned to 500 m \u2014 annual max bolometric T",
+    "verified": true
+   }
+  },
+  {
+   "id": "iceDepth",
+   "dtype": "u16",
+   "byteOffset": 160000,
+   "scale": 0.001,
+   "offset": 0.0,
+   "nodata": 65535,
+   "unit": "m",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "medium",
+    "source": "Diviner Polar Resource Product, south (Paige et al. 2010; LRO-L-DLRE-5-PRP-V2.0), binned to 500 m \u2014 depth of water-ice stability (1 kg m\u207b\u00b2 Gyr\u207b\u00b9 sublimation), capped at 3 m = deeper than 2.87 m",
+    "verified": true
+   }
+  },
+  {
+   "id": "iceStableFraction",
+   "dtype": "u8",
+   "byteOffset": 240000,
+   "scale": 0.004,
+   "offset": 0.0,
+   "nodata": 255,
+   "unit": "fraction",
+   "provenance": {
+    "kind": "derived",
+    "confidence": "medium",
+    "source": "Diviner Polar Resource Product, south (Paige et al. 2010; LRO-L-DLRE-5-PRP-V2.0), binned to 500 m \u2014 share of the cell where water ice is stable AT the surface (cold trap)",
+    "verified": true
+   }
+  },
+  {
+   "id": "cpr",
+   "dtype": "u16",
+   "byteOffset": 280000,
+   "scale": 0.001,
+   "offset": 0.0,
+   "nodata": 65535,
+   "unit": "ratio",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "medium",
+    "source": "LRO Mini-RF S-band (12.6 cm) global CPR mosaic, 128 ppd (LRO-L-MRFLRO-5-GLOBAL-MOSAIC-V1), 2009\u20132010",
+    "verified": true
+   }
+  },
+  {
+   "id": "feo",
+   "dtype": "u16",
+   "byteOffset": 360000,
+   "scale": 0.01,
+   "offset": 0.0,
+   "nodata": 65535,
+   "unit": "wt%",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "low",
+    "source": "Lunar Prospector GRS elemental abundance, 2\u00b0 bins (~60 km) (Prettyman et al. 2006) \u2014 FeO",
+    "verified": true
+   }
+  },
+  {
+   "id": "tio2",
+   "dtype": "u16",
+   "byteOffset": 440000,
+   "scale": 0.01,
+   "offset": 0.0,
+   "nodata": 65535,
+   "unit": "wt%",
+   "provenance": {
+    "kind": "measured",
+    "confidence": "low",
+    "source": "Lunar Prospector GRS elemental abundance, 2\u00b0 bins (~60 km) (Prettyman et al. 2006) \u2014 TiO2",
+    "verified": true
+   }
+  }
+ ],
+ "sources": {
+  "diviner": "https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/dlre_prp_south.tab",
+  "minirf": "https://pds-geosciences.wustl.edu/lro/lro-l-mrflro-5-global-mosaic-v1/lromrf_1001/data/128ppd/global_cpr_128ppd_simp_0c.img",
+  "lpgrs": "https://pds-geosciences.wustl.edu/lunar/lp-l-grs-5-elem-abundance-v1/lp_9001/data/lpgrs_high1_elem_abundance_2deg.tab"
+ },
+ "unverified": [
+  "LEND / LP-NS hydrogen maps (only raw EDR/RDR found)",
+  "Diviner polar rock abundance (only cylindrical GDR L3 / GHRM found)"
+ ],
+ "generatedAt": "2026-11-14T22:42:33Z"
+}
